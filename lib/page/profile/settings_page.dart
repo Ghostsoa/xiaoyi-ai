@@ -520,6 +520,7 @@ class _SettingsPageState extends State<SettingsPage> {
           onPressed: () {
             Navigator.of(context).pop();
             _storageDao.clearUserData();
+            _storageDao.clearCredentials();
             Navigator.of(context).pushNamedAndRemoveUntil(
               '/login',
               (route) => false,
@@ -755,6 +756,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 CustomSnackBar.show(context, message: '密码修改成功');
                 // 直接调用退出登录的逻辑
                 _storageDao.clearUserData();
+                _storageDao.clearCredentials();
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/login',
                   (route) => false,

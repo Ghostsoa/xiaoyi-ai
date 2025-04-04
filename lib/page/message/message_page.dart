@@ -12,6 +12,10 @@ import '../chat/chat_page.dart';
 import '../chat/group_chat_page.dart';
 import '../../components/custom_snack_bar.dart';
 import '../assistant/official_assistant_page.dart';
+import '../../net/admin/version_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MessagePage extends StatefulWidget {
   final ChatListService chatListService;
@@ -41,6 +45,9 @@ class MessagePageState extends State<MessagePage> {
   final NotificationService _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
 
+  // 添加版本检测相关变量
+  bool _hasNewVersion = false;
+
   // 添加官方助手的常量
   static const String officialAssistantCode = 'official_assistant';
   final ChatListItem officialAssistant = ChatListItem(
@@ -56,6 +63,15 @@ class MessagePageState extends State<MessagePage> {
   void initState() {
     super.initState();
     _loadItems();
+    _loadNotificationStatus();
+    checkVersion(); // 添加版本检测
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 在页面从导航栈返回或首次加载时检查版本更新
+    checkVersion();
     _loadNotificationStatus();
   }
 
@@ -207,6 +223,7 @@ class MessagePageState extends State<MessagePage> {
   Future<void> _onRefresh() async {
     await _loadItems();
     await _loadNotificationStatus();
+    await checkVersion(); // 添加版本检测
     _refreshController.refreshCompleted();
   }
 
@@ -313,6 +330,53 @@ class MessagePageState extends State<MessagePage> {
     await _loadNotificationStatus();
   }
 
+  // 添加版本检测方法
+  Future<void> checkVersion() async {
+    if (!mounted) return;
+
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentAppVersion = packageInfo.version;
+      print('当前应用版本: $currentAppVersion');
+
+      // 获取版本信息
+      final result = await VersionService.getVersionInfo();
+      print('版本检测结果: $result');
+
+      // 检查返回的结果是否包含current_version字段
+      if (result.containsKey('current_version')) {
+        final latestVersion = result['current_version'] as String;
+        print('最新版本: $latestVersion');
+
+        // 版本比较
+        if (currentAppVersion != latestVersion) {
+          if (mounted) {
+            setState(() {
+              _hasNewVersion = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('检查版本失败: $e');
+    }
+  }
+
+  // 添加打开下载链接方法
+  Future<void> _openDownloadLink() async {
+    final String downloadUrl = defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS
+        ? 'https://xiaoyi.ink/%E5%B0%8F%E6%87%BFAI.ipa'
+        : 'https://xiaoyi.ink/%E5%B0%8F%E6%87%BFAI.apk';
+
+    final Uri url = Uri.parse(downloadUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        CustomSnackBar.show(context, message: '无法打开下载链接');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 准备显示的列表项
@@ -350,6 +414,72 @@ class MessagePageState extends State<MessagePage> {
             ),
           ),
           actions: [
+            // 版本检测图标
+            if (_hasNewVersion)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.system_update,
+                      color: Colors.red,
+                    ),
+                    tooltip: '发现新版本',
+                    onPressed: _openDownloadLink,
+                  ),
+                  const Text(
+                    "可更新",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            // 通知图标始终显示
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  tooltip: '通知',
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/notifications').then((_) {
+                      // 返回后刷新通知状态
+                      _loadNotificationStatus();
+                    });
+                  },
+                ),
+                if (_unreadNotificationCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _unreadNotificationCount > 99
+                            ? '99+'
+                            : _unreadNotificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             if (_items != null && _items!.isNotEmpty)
               if (_isSelectionMode) ...[
                 TextButton(
@@ -377,48 +507,6 @@ class MessagePageState extends State<MessagePage> {
                 ),
                 const SizedBox(width: 8),
               ] else ...[
-                Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      tooltip: '通知',
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/notifications')
-                            .then((_) {
-                          // 返回后刷新通知状态
-                          _loadNotificationStatus();
-                        });
-                      },
-                    ),
-                    if (_unreadNotificationCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            _unreadNotificationCount > 99
-                                ? '99+'
-                                : _unreadNotificationCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: '删除',

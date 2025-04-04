@@ -58,6 +58,11 @@ class StorageDao {
     };
   }
 
+  // 清除登录凭证（只清除密码，保留账号）
+  Future<void> clearCredentials() async {
+    await _prefs.remove(_keyPassword);
+  }
+
   // 清除所有数据
   Future<void> clearAll() async {
     await _prefs.clear();

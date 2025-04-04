@@ -8,6 +8,7 @@ import '../../net/http_client.dart';
 import '../../service/character_card_service.dart';
 import '../../service/chat_history_service.dart';
 import '../../service/chat_list_service.dart';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -25,7 +26,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _profileService = ProfileService();
   Map<String, dynamic>? _assetData;
@@ -53,10 +54,44 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 设置 HttpClient 的全局 context
     WidgetsBinding.instance.addPostFrameCallback((_) {
       HttpClient.setContext(context);
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 应用从后台回到前台，执行刷新操作
+      if (_currentIndex == 0) {
+        _messagePageKey.currentState?.checkNotificationStatus();
+        _messagePageKey.currentState?.refreshMessages();
+        _messagePageKey.currentState?.checkVersion();
+      } else if (_currentIndex == 2) {
+        _loadAssetInfo();
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 在应用从后台回到前台或首次加载时检查
+    if (_currentIndex == 0) {
+      _messagePageKey.currentState?.checkNotificationStatus();
+      _messagePageKey.currentState?.refreshMessages();
+      _messagePageKey.currentState?.checkVersion();
+    } else if (_currentIndex == 2) {
+      _loadAssetInfo();
+    }
   }
 
   void _onDestinationSelected(int index) {
@@ -67,6 +102,7 @@ class _HomePageState extends State<HomePage> {
     if (index == 0) {
       _messagePageKey.currentState?.refreshMessages();
       _messagePageKey.currentState?.checkNotificationStatus();
+      _messagePageKey.currentState?.checkVersion();
     }
     // 当切换到个人页面时加载资产信息
     if (index == 2) {

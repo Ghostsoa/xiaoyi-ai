@@ -113,6 +113,7 @@ class HttpClient {
         // 如果是401错误，可以在这里处理token过期的情况
         if (error.response?.statusCode == 401) {
           _storageDao.clearUserData();
+          _storageDao.clearCredentials(); // 添加清除登录凭证
           if (_context != null && _context!.mounted) {
             CustomSnackBar.show(
               _context!,

@@ -43,10 +43,23 @@ class _LoginPageState extends State<LoginPage>
 
   Future<void> _loadSavedCredentials() async {
     final credentials = _storageDao.getCredentials();
-    if (credentials['email'] != null && credentials['password'] != null) {
+
+    // 如果有保存的邮箱，填充到输入框
+    if (credentials['email'] != null) {
       setState(() {
         _emailController.text = credentials['email']!;
+      });
+    }
+
+    // 只有当邮箱和密码都存在时，才设置密码并尝试自动登录
+    if (credentials['email'] != null && credentials['password'] != null) {
+      setState(() {
         _passwordController.text = credentials['password']!;
+      });
+
+      // 当有完整的凭证时，自动尝试登录
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _login(); // 直接调用登录按钮的方法
       });
     }
   }
