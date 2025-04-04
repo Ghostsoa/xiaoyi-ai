@@ -1,0 +1,44 @@
+name: iOS 构建
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 设置 Java 环境
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: 设置 Flutter 环境
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+      
+      - name: 获取依赖
+        run: flutter pub get
+        
+      - name: 构建iOS应用
+        run: |
+          cd ios
+          pod install
+          flutter build ios --release --no-codesign
+          
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build
+          path: build/ios/iphoneos
+          retention-days: 7 
