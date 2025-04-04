@@ -33,10 +33,32 @@ jobs:
       - name: 构建iOS应用
         run: |
           cd ios
-          pod install
+          rm -rf Pods
+          rm -rf Podfile.lock
+          pod repo update
+          pod install --repo-update
+          cd ..
           flutter build ios --release --no-codesign
+      
+      - name: 创建IPA文件
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r app.ipa Payload
+          ls -la
+          echo "生成的IPA文件:"
+          ls -la app.ipa || echo "IPA文件未生成"
+          cd ../../..
           
-      - name: 上传构建产物
+      - name: 上传IPA文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: build/ios/iphoneos/app.ipa
+          retention-days: 7
+          
+      - name: 上传未签名构建产物
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
