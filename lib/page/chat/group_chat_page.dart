@@ -180,6 +180,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
           _messages.removeLast();
           _chatHistory.messages.removeLast();
           _isLoading = false;
+          // 将发送的内容恢复到输入框
+          _inputController.text = text;
         });
         CustomSnackBar.show(context, message: '发送失败: $e');
       }
