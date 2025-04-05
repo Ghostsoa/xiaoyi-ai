@@ -9,6 +9,7 @@ class StorageDao {
   static const String _keyPassword = 'password';
   static const String _primaryColorKey = 'primary_color';
   static const String _secondaryColorKey = 'secondary_color';
+  static const String _apiNodeKey = 'api_node';
 
   static final StorageDao _instance = StorageDao._internal();
   late SharedPreferences _prefs;
@@ -101,5 +102,14 @@ class StorageDao {
   // 获取布尔值
   bool? getBool(String key) {
     return _prefs.getBool(key);
+  }
+
+  // API节点相关
+  Future<void> saveApiNode(String node) async {
+    await _prefs.setString(_apiNodeKey, node);
+  }
+
+  String getApiNode() {
+    return _prefs.getString(_apiNodeKey) ?? 'xy.xiaoyi.live'; // 默认使用xy节点
   }
 }

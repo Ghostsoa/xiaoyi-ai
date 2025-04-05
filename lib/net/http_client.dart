@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:io';
 import '../dao/storage_dao.dart';
 import '../components/custom_snack_bar.dart';
 
@@ -12,6 +13,7 @@ class HttpClient {
   static BuildContext? _context;
   String _appVersion = '1.0.0'; // 默认版本号
   bool _isInitialized = false;
+  String _baseUrl = '';
 
   // 设置全局 context
   static void setContext(BuildContext context) {
@@ -36,13 +38,70 @@ class HttpClient {
     }
   }
 
+  // 更新API节点
+  void updateApiNode(String node) {
+    // 保存到本地存储
+    _storageDao.saveApiNode(node);
+    // 更新基础URL
+    _baseUrl = 'https://$node/api/v1';
+    // 更新Dio实例的baseUrl
+    _dio.options.baseUrl = _baseUrl;
+  }
+
+  // 获取当前API节点
+  String getCurrentApiNode() {
+    return _storageDao.getApiNode();
+  }
+
+  // 获取所有可用节点
+  List<String> getAvailableNodes() {
+    return ['xy.xiaoyi.live', 'jp.xiaoyi.live'];
+  }
+
+  // 获取节点描述
+  String getNodeDescription(String node) {
+    switch (node) {
+      case 'xy.xiaoyi.live':
+        return '美国直连';
+      case 'jp.xiaoyi.live':
+        return '日本中转';
+      default:
+        return '';
+    }
+  }
+
+  // 测试节点延迟
+  Future<int> pingNode(String node) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+      // 发送真实的HTTP请求到API服务器
+      final dio = Dio(BaseOptions(
+        baseUrl: 'https://$node',
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        sendTimeout: const Duration(seconds: 5),
+      ));
+
+      // 使用专门的ping端点测试延迟
+      await dio.get('/api/v1/ping');
+      stopwatch.stop();
+      return stopwatch.elapsedMilliseconds;
+    } catch (e) {
+      print('Ping $node 失败: $e');
+      return -1; // 发生错误或超时
+    }
+  }
+
   HttpClient._internal() {
+    // 从存储中获取当前节点
+    final node = _storageDao.getApiNode();
+    _baseUrl = 'https://$node/api/v1';
     _setupDio();
   }
 
   void _setupDio() {
     _dio = Dio(BaseOptions(
-      baseUrl: 'https://xy.xiaoyi.live/api/v1',
+      baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       sendTimeout: const Duration(seconds: 10),

@@ -8,6 +8,7 @@ import '../../components/dialogs/about_dialog.dart';
 import '../../components/dialogs/disclaimer_dialog.dart';
 import '../../components/dialogs/privacy_policy_dialog.dart';
 import '../../net/profile/profile_service.dart';
+import '../../net/http_client.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -19,12 +20,18 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _storageDao = StorageDao();
   final _profileService = ProfileService();
+  final _httpClient = HttpClient();
   Color _primaryColor = const Color(0xFF6C72CB); // 使用默认值初始化
   Color _secondaryColor = const Color(0xFF88A0BF); // 使用默认值初始化
   Color _originalPrimaryColor = const Color(0xFF6C72CB);
   Color _originalSecondaryColor = const Color(0xFF88A0BF);
   bool _hasChanges = false;
   bool _followPrimaryColor = false; // 添加次色调跟随开关状态
+
+  // API节点相关
+  late String _currentNode;
+  final Map<String, int> _nodePingResults = {};
+  bool _isPinging = false;
 
   // 默认颜色
   static const Color defaultPrimaryColor = Color(0xFF6C72CB);
@@ -35,6 +42,8 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadThemeColors();
     _loadFollowPrimaryColorSetting();
+    _loadCurrentNode();
+    _pingAllNodes();
   }
 
   Future<void> _loadThemeColors() async {
@@ -119,6 +128,51 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
     await _storageDao.setBool('follow_primary_color', value);
+  }
+
+  // 加载当前节点设置
+  void _loadCurrentNode() {
+    _currentNode = _httpClient.getCurrentApiNode();
+  }
+
+  // Ping所有可用节点
+  Future<void> _pingAllNodes() async {
+    if (_isPinging) return;
+
+    setState(() {
+      _isPinging = true;
+      _nodePingResults.clear();
+    });
+
+    final nodes = _httpClient.getAvailableNodes();
+    for (final node in nodes) {
+      final ping = await _httpClient.pingNode(node);
+      if (mounted) {
+        setState(() {
+          _nodePingResults[node] = ping;
+        });
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isPinging = false;
+      });
+    }
+  }
+
+  // 切换API节点
+  void _changeApiNode(String node) {
+    if (node == _currentNode) return;
+
+    _httpClient.updateApiNode(node);
+    setState(() {
+      _currentNode = node;
+    });
+    CustomSnackBar.show(
+      context,
+      message: '已切换到 $node 节点，下次请求生效',
+    );
   }
 
   @override
@@ -310,6 +364,85 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              // API节点设置
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'API节点设置',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.refresh_outlined,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
+                            onPressed: _pingAllNodes,
+                            tooltip: '刷新延迟',
+                          ),
+                        ],
+                      ),
+                    ),
+                    for (final node in _httpClient.getAvailableNodes())
+                      RadioListTile<String>(
+                        title: Row(
+                          children: [
+                            Text(
+                              node,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (_isPinging)
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            else if (_nodePingResults.containsKey(node))
+                              _buildPingLabel(_nodePingResults[node]!),
+                          ],
+                        ),
+                        subtitle: Text(
+                          _httpClient.getNodeDescription(node),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        value: node,
+                        groupValue: _currentNode,
+                        onChanged: (value) {
+                          if (value != null) {
+                            _changeApiNode(value);
+                          }
+                        },
+                        activeColor: Colors.white,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               // 账号设置
               Container(
                 decoration: BoxDecoration(
@@ -454,6 +587,50 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // 构建延迟显示标签
+  Widget _buildPingLabel(int ping) {
+    if (ping < 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          '超时',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
+    Color bgColor;
+    if (ping < 100) {
+      bgColor = Colors.green.withOpacity(0.5);
+    } else if (ping < 300) {
+      bgColor = Colors.orange.withOpacity(0.5);
+    } else {
+      bgColor = Colors.red.withOpacity(0.5);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$ping ms',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
         ),
       ),
     );
