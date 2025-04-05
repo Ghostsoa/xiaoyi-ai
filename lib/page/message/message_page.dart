@@ -348,8 +348,11 @@ class MessagePageState extends State<MessagePage> {
         final latestVersion = result['current_version'] as String;
         print('最新版本: $latestVersion');
 
-        // 版本比较
-        if (currentAppVersion != latestVersion) {
+        // 正确的版本比较逻辑
+        final isUpdateAvailable =
+            _compareVersions(latestVersion, currentAppVersion) > 0;
+
+        if (isUpdateAvailable) {
           if (mounted) {
             setState(() {
               _hasNewVersion = true;
@@ -360,6 +363,32 @@ class MessagePageState extends State<MessagePage> {
     } catch (e) {
       print('检查版本失败: $e');
     }
+  }
+
+  // 比较两个版本号的大小
+  // 返回值：1表示version1大于version2，0表示相等，-1表示version1小于version2
+  int _compareVersions(String version1, String version2) {
+    final v1Parts = version1.split('.').map(int.parse).toList();
+    final v2Parts = version2.split('.').map(int.parse).toList();
+
+    // 确保两个版本号列表长度相同
+    while (v1Parts.length < v2Parts.length) {
+      v1Parts.add(0);
+    }
+    while (v2Parts.length < v1Parts.length) {
+      v2Parts.add(0);
+    }
+
+    // 比较各部分
+    for (int i = 0; i < v1Parts.length; i++) {
+      if (v1Parts[i] > v2Parts[i]) {
+        return 1;
+      } else if (v1Parts[i] < v2Parts[i]) {
+        return -1;
+      }
+    }
+
+    return 0; // 版本号相同
   }
 
   // 添加打开下载链接方法

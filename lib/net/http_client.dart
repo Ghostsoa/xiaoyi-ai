@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'dart:io';
 import '../dao/storage_dao.dart';
 import '../components/custom_snack_bar.dart';
 
@@ -197,6 +196,7 @@ class HttpClient {
       return response;
     } catch (e) {
       print('GET请求失败: $e');
+      _handleDioError(e);
       rethrow;
     }
   }
@@ -210,6 +210,7 @@ class HttpClient {
       return response;
     } catch (e) {
       print('POST请求失败: $e');
+      _handleDioError(e);
       rethrow;
     }
   }
@@ -222,6 +223,7 @@ class HttpClient {
       return response;
     } catch (e) {
       print('PUT请求失败: $e');
+      _handleDioError(e);
       rethrow;
     }
   }
@@ -234,7 +236,54 @@ class HttpClient {
       return response;
     } catch (e) {
       print('DELETE请求失败: $e');
+      _handleDioError(e);
       rethrow;
+    }
+  }
+
+  // 处理Dio异常，提供友好的错误信息
+  void _handleDioError(dynamic error) {
+    if (error is DioException) {
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+          _showErrorMessage('连接超时，请检查网络或选择其他节点');
+          break;
+        case DioExceptionType.sendTimeout:
+          _showErrorMessage('发送超时，请检查网络或选择其他节点');
+          break;
+        case DioExceptionType.receiveTimeout:
+          _showErrorMessage('接收超时，请检查网络或选择其他节点');
+          break;
+        case DioExceptionType.badCertificate:
+          _showErrorMessage('服务器证书验证失败');
+          break;
+        case DioExceptionType.badResponse:
+          _showErrorMessage('服务器返回错误：${error.response?.statusCode ?? "未知"}');
+          break;
+        case DioExceptionType.cancel:
+          _showErrorMessage('请求被取消');
+          break;
+        case DioExceptionType.connectionError:
+          _showErrorMessage('连接错误，请检查网络设置');
+          break;
+        case DioExceptionType.unknown:
+          if (error.error != null &&
+              error.error.toString().contains('SocketException')) {
+            _showErrorMessage('无法连接到服务器，请检查网络或选择其他节点');
+          } else {
+            _showErrorMessage('未知错误：${error.message}');
+          }
+          break;
+        default:
+          _showErrorMessage('请求错误：${error.message}');
+      }
+    }
+  }
+
+  // 显示错误消息
+  void _showErrorMessage(String message) {
+    if (_context != null && _context!.mounted) {
+      CustomSnackBar.show(_context!, message: message);
     }
   }
 }
