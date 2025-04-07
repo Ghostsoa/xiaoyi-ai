@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../net/image/image_generation_service.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_gallery_saver/flutter_image_gallery_saver.dart';
 import '../../components/custom_snack_bar.dart';
