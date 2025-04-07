@@ -116,13 +116,53 @@ class _MessageBubbleState extends State<MessageBubble> {
   List<Map<String, String>> _parseContentTags(String content) {
     final parts = <Map<String, String>>[];
     final RegExp tagPattern = RegExp(r'<(scene|action|thought|s)>(.*?)</\1>');
+    int lastEnd = 0;
 
+    // 查找所有带标签的内容
     for (final match in tagPattern.allMatches(content)) {
-      // 只添加标签内容
+      // 如果标签前有纯文本，先将纯文本添加到parts中
+      if (match.start > lastEnd) {
+        final plainText = content.substring(lastEnd, match.start);
+        if (plainText.trim().isNotEmpty) {
+          parts.add({'text': plainText, 'type': 'text'});
+        }
+      }
+
+      // 添加标签内容
       parts.add({'text': match.group(2) ?? '', 'type': match.group(1) ?? ''});
+      lastEnd = match.end;
+    }
+
+    // 处理最后一个标签后的纯文本
+    if (lastEnd < content.length) {
+      final plainText = content.substring(lastEnd);
+      if (plainText.trim().isNotEmpty) {
+        parts.add({'text': plainText, 'type': 'text'});
+      }
+    }
+
+    // 如果没有找到任何标签，将整个内容作为纯文本
+    if (parts.isEmpty) {
+      parts.add({'text': content, 'type': 'text'});
     }
 
     return parts;
+  }
+
+  String _rebuildContent(List<Map<String, String>> parts) {
+    final StringBuffer buffer = StringBuffer();
+    for (final part in parts) {
+      final type = part['type'] ?? 'text';
+      final text = part['text'] ?? '';
+
+      // 纯文本不需要添加标签
+      if (type == 'text') {
+        buffer.write(text);
+      } else {
+        buffer.write('<$type>$text</$type>');
+      }
+    }
+    return buffer.toString();
   }
 
   TextStyle _getStyleForType(String type) {
@@ -159,16 +199,6 @@ class _MessageBubbleState extends State<MessageBubble> {
       default:
         return baseStyle;
     }
-  }
-
-  String _rebuildContent(List<Map<String, String>> parts) {
-    final StringBuffer buffer = StringBuffer();
-    for (final part in parts) {
-      final type = part['type'];
-      final text = part['text'] ?? '';
-      buffer.write('<$type>$text</$type>');
-    }
-    return buffer.toString();
   }
 
   void _saveChanges() {

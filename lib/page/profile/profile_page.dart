@@ -8,7 +8,12 @@ import 'sponsor_page.dart';
 import '../admin/admin_page.dart';
 import '../../net/role_card/online_role_card_service.dart';
 import '../../model/online_role_card.dart';
-import 'package:intl/intl.dart';
+import '../plaza/online_role_card_detail_page.dart';
+import '../../components/profile/visibility_filter_bar.dart';
+import '../../components/profile/user_role_card_item.dart';
+import '../../components/plaza/plaza_empty_state.dart';
+import '../../components/plaza/skeleton_card_item.dart';
+import '../../components/profile/check_in_card.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic>? assetData;
@@ -19,16 +24,22 @@ class ProfilePage extends StatefulWidget {
   });
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfilePage> createState() => ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
+class ProfilePageState extends State<ProfilePage>
     with AutomaticKeepAliveClientMixin {
   final _storageDao = StorageDao();
   final _roleCardService = OnlineRoleCardService();
+  final _checkInKey = GlobalKey<CheckInCardState>();
   Map<String, dynamic>? _userData;
   List<OnlineRoleCard>? _roleCards;
-  bool _isLoadingCards = false;
+  bool _isInitialLoading = false;
+  bool _isPaginationLoading = false;
+  bool _isError = false;
+  int _currentPage = 1;
+  int _total = 0;
+  String _visibility = 'all'; // 默认显示全部
 
   @override
   bool get wantKeepAlive => true;
@@ -50,28 +61,91 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _loadRoleCards() async {
-    if (_isLoadingCards) return;
+    if (_isInitialLoading || _isPaginationLoading) return;
 
     setState(() {
-      _isLoadingCards = true;
+      _isInitialLoading = true;
+      _isError = false;
     });
 
     try {
-      final result = await _roleCardService.getUserRoleCards();
+      _currentPage = 1;
+      final result = await _roleCardService.getUserRoleCards(
+        page: _currentPage,
+        visibility: _visibility,
+      );
+
       if (mounted) {
         setState(() {
           _roleCards = result.list;
-          _isLoadingCards = false;
+          _total = result.total;
+          _isInitialLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isLoadingCards = false;
+          _isError = true;
+          _isInitialLoading = false;
         });
         CustomSnackBar.show(context, message: '加载角色卡列表失败: $e');
       }
     }
+  }
+
+  Future<void> _loadMoreRoleCards() async {
+    if (_isInitialLoading ||
+        _isPaginationLoading ||
+        (_roleCards?.length ?? 0) >= _total) {
+      return;
+    }
+
+    setState(() {
+      _isPaginationLoading = true;
+    });
+
+    try {
+      final result = await _roleCardService.getUserRoleCards(
+        page: _currentPage + 1,
+        visibility: _visibility,
+      );
+
+      if (mounted) {
+        setState(() {
+          _roleCards = [...?_roleCards, ...result.list];
+          _total = result.total;
+          _currentPage++;
+          _isPaginationLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isPaginationLoading = false;
+        });
+        CustomSnackBar.show(context, message: '加载更多角色卡失败: $e');
+      }
+    }
+  }
+
+  void _handleVisibilityChanged(String visibility) {
+    if (_visibility != visibility) {
+      setState(() {
+        _visibility = visibility;
+        _roleCards = null; // 清空当前列表
+        _currentPage = 1;
+      });
+      _loadRoleCards();
+    }
+  }
+
+  void _navigateToDetail(OnlineRoleCard card) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OnlineRoleCardDetailPage(card: card),
+      ),
+    );
   }
 
   bool get _isAdmin => _userData?['user']?['role'] == 2;
@@ -143,6 +217,77 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  Future<void> _toggleCardStatus(OnlineRoleCard card, int newStatus) async {
+    try {
+      // 显示加载指示器
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      await _roleCardService.toggleCardStatus(card.code, newStatus);
+
+      // 关闭加载指示器
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // 更新本地数据
+      if (mounted) {
+        setState(() {
+          // 创建一个新的修改后的角色卡对象
+          final updatedCard = OnlineRoleCard(
+            id: card.id,
+            code: card.code,
+            userId: card.userId,
+            authorName: card.authorName,
+            title: card.title,
+            description: card.description,
+            tags: card.tags,
+            category: card.category,
+            rawDataUrl: card.rawDataUrl,
+            coverUrl: card.coverUrl,
+            status: newStatus, // 更新状态
+            downloads: card.downloads,
+            createdAt: card.createdAt,
+            updatedAt: card.updatedAt,
+          );
+
+          // 在列表中找到并替换角色卡
+          final index =
+              _roleCards?.indexWhere((c) => c.code == card.code) ?? -1;
+          if (index != -1 && _roleCards != null) {
+            _roleCards![index] = updatedCard;
+          }
+        });
+
+        // 显示成功消息
+        CustomSnackBar.show(
+          context,
+          message: '角色卡状态已更新为${newStatus == 1 ? '公开' : '非公开'}',
+        );
+      }
+    } catch (e) {
+      // 关闭加载指示器
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // 显示错误消息
+      if (mounted) {
+        CustomSnackBar.show(context, message: '更新角色卡状态失败: $e');
+      }
+    }
+  }
+
+  // 刷新签到状态的方法
+  void refreshCheckInStatus() {
+    _checkInKey.currentState?.refreshStatus();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -170,7 +315,7 @@ class _ProfilePageState extends State<ProfilePage>
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -306,6 +451,9 @@ class _ProfilePageState extends State<ProfilePage>
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    // 签到卡片
+                    CheckInCard(key: _checkInKey),
                     const SizedBox(height: 24),
                     // 数据统计
                     Row(
@@ -476,6 +624,11 @@ class _ProfilePageState extends State<ProfilePage>
                                 color: Colors.white,
                                 size: 24,
                               ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
+                              ),
                               onPressed: _loadRoleCards,
                             ),
                             IconButton(
@@ -484,6 +637,11 @@ class _ProfilePageState extends State<ProfilePage>
                                 Icons.settings_outlined,
                                 color: Colors.white,
                                 size: 24,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
                               ),
                               onPressed: () {
                                 Navigator.push(
@@ -498,13 +656,18 @@ class _ProfilePageState extends State<ProfilePage>
                         ),
                       ],
                     ),
+                    // 可见性筛选栏
+                    VisibilityFilterBar(
+                      currentVisibility: _visibility,
+                      onVisibilityChanged: _handleVisibilityChanged,
+                    ),
                   ],
                 ),
               ),
             ),
             // 已发布作品列表
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildRoleCardList(),
@@ -518,12 +681,22 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildRoleCardList() {
-    if (_isLoadingCards) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
+    if (_isInitialLoading && (_roleCards == null || _roleCards!.isEmpty)) {
+      return Column(
+        children: List.generate(
+          3,
+          (index) => const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: SkeletonCardItem(),
+          ),
         ),
+      );
+    }
+
+    if (_isError) {
+      return PlazaEmptyState(
+        isLoading: false,
+        isError: true,
       );
     }
 
@@ -554,93 +727,38 @@ class _ProfilePageState extends State<ProfilePage>
     }
 
     return Column(
-      children: _roleCards!.map((card) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.white.withOpacity(0.1),
-                width: 0.5,
-              ),
+      children: [
+        ...List.generate(
+          _roleCards!.length,
+          (index) => UserRoleCardItem(
+            card: _roleCards![index],
+            onTap: _navigateToDetail,
+            onDelete: _deleteRoleCard,
+            onToggleStatus: _toggleCardStatus,
+          ),
+        ),
+        // 加载更多
+        if (_roleCards!.length < _total)
+          InkWell(
+            onTap: _loadMoreRoleCards,
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              child: _isPaginationLoading
+                  ? const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    )
+                  : Text(
+                      '加载更多 (${_roleCards!.length}/$_total)',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
             ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          '#${card.id}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            card.title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.download_outlined,
-                          size: 13,
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${card.downloads}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          DateFormat('yyyy-MM-dd HH:mm').format(card.createdAt),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () => _deleteRoleCard(card),
-                icon: Icon(
-                  Icons.delete_outline,
-                  color: Colors.red.withOpacity(0.7),
-                  size: 18,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 36,
-                  minHeight: 36,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+      ],
     );
   }
 }

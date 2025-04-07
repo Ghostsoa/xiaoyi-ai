@@ -569,6 +569,117 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
                           _loadCards();
                         }
                       } else if (value == 'upload') {
+                        // 显示公开/非公开选择对话框
+                        final statusChoice = await showDialog<int>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: Colors.black87,
+                            title: const Text(
+                              '选择可见性',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 16),
+                                // 公开选项
+                                InkWell(
+                                  onTap: () => Navigator.of(context).pop(1),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.green.withOpacity(0.5),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.public,
+                                          color: Colors.green,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              '公开',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // 非公开选项
+                                InkWell(
+                                  onTap: () => Navigator.of(context).pop(0),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.orange.withOpacity(0.5),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.lock_outline,
+                                          color: Colors.orange,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              '非公开',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(null),
+                                child: const Text(
+                                  '取消',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        // 如果用户取消了选择，则不继续上传
+                        if (statusChoice == null) return;
+
                         try {
                           final roleCardService = RoleCardService();
                           // 根据角色卡类型判断分类
@@ -579,8 +690,11 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
                           final result = await LoadingOverlay.show(
                             context,
                             text: '上传中',
-                            future: () =>
-                                roleCardService.uploadCard(card, category),
+                            future: () => roleCardService.uploadCard(
+                              card,
+                              category,
+                              status: statusChoice, // 添加状态参数
+                            ),
                           );
 
                           if (result['code'] == 200) {

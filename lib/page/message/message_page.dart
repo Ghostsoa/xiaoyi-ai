@@ -8,8 +8,8 @@ import '../../service/character_card_service.dart';
 import '../../service/chat_history_service.dart';
 import '../../service/image_service.dart';
 import '../../net/notification/notification_service.dart';
-import '../chat/chat_page.dart';
-import '../chat/group_chat_page.dart';
+import '../../page/chat/chat_page.dart';
+import '../../page/chat/group_chat_page.dart';
 import '../../components/custom_snack_bar.dart';
 import '../assistant/official_assistant_page.dart';
 import '../../net/admin/version_service.dart';
@@ -655,7 +655,9 @@ class MessagePageState extends State<MessagePage> {
                                         Row(
                                           children: [
                                             Text(
-                                              item.title,
+                                              item.title.length > 6
+                                                  ? '${item.title.substring(0, 6)}...'
+                                                  : item.title,
                                               style: const TextStyle(
                                                 fontSize: 16,
                                                 color: Colors.white,

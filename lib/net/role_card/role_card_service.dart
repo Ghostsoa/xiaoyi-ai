@@ -14,8 +14,8 @@ class RoleCardService {
     return e.toString();
   }
 
-  Future<Map<String, dynamic>> uploadCard(
-      CharacterCard card, String category) async {
+  Future<Map<String, dynamic>> uploadCard(CharacterCard card, String category,
+      {int status = 1}) async {
     try {
       // 1. 准备角色卡数据文件
       final cardData = CharacterCardPacker.packCard(card);
@@ -30,7 +30,8 @@ class RoleCardService {
         'description': card.description,
         'category': category,
         'code': card.code,
-        'tags': card.tags,
+        'tags': card.tags.join(','),
+        'status': status.toString(),
         'raw_data': MultipartFile.fromBytes(
           cardData,
           filename: '${card.code}.xycard',
@@ -42,11 +43,26 @@ class RoleCardService {
       });
 
       // 4. 发送请求
-      final response =
-          await _httpClient.post('/role-cards/upload', data: formData);
-      return response.data;
+      final response = await _httpClient.post(
+        '/role-cards/upload',
+        data: formData,
+        options: Options(
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+
+      if (response.data is Map<String, dynamic>) {
+        return response.data;
+      } else {
+        // 处理可能返回字符串或其他类型的情况
+        return {'code': 400, 'msg': '上传失败：服务器返回了非预期的数据格式'};
+      }
     } catch (e) {
-      throw _getErrorMessage(e);
+      final errorMsg = _getErrorMessage(e);
+      // 错误时，返回统一的错误格式Map，而不是抛出字符串异常
+      return {'code': 500, 'msg': errorMsg};
     }
   }
 }

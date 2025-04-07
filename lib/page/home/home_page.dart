@@ -32,6 +32,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Map<String, dynamic>? _assetData;
   DateTime? _lastFetchTime;
   final _messagePageKey = GlobalKey<MessagePageState>();
+  final _profilePageKey = GlobalKey<ProfilePageState>();
 
   final List<NavigationDestination> _destinations = [
     NavigationDestination(
@@ -77,6 +78,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _messagePageKey.currentState?.checkVersion();
       } else if (_currentIndex == 2) {
         _loadAssetInfo();
+        _profilePageKey.currentState?.refreshCheckInStatus();
       }
     }
   }
@@ -104,9 +106,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _messagePageKey.currentState?.checkNotificationStatus();
       _messagePageKey.currentState?.checkVersion();
     }
-    // 当切换到个人页面时加载资产信息
+    // 当切换到个人页面时加载资产信息和刷新签到状态
     if (index == 2) {
       _loadAssetInfo();
+      _profilePageKey.currentState?.refreshCheckInStatus();
     }
   }
 
@@ -133,7 +136,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 chatHistoryService: widget.chatHistoryService,
                 chatListService: widget.chatListService,
               ),
-              ProfilePage(assetData: _assetData),
+              ProfilePage(key: _profilePageKey, assetData: _assetData),
             ],
           ),
         ],

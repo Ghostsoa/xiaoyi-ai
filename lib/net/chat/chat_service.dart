@@ -11,7 +11,16 @@ class ChatService {
   String _getErrorMessage(dynamic e) {
     if (e is DioException && e.response?.data != null) {
       final responseData = e.response!.data;
-      return responseData['error'] ?? '请求失败';
+      // 优先使用error字段，然后是message字段
+      if (responseData['error'] != null) {
+        return responseData['error'].toString();
+      }
+
+      if (responseData['message'] != null) {
+        return responseData['message'].toString();
+      }
+
+      return '请求失败';
     }
     return e.toString();
   }
@@ -108,15 +117,24 @@ class ChatService {
         data: requestBody,
       );
 
-      if (response.statusCode == 200) {
-        final responseData = response.data;
-        if (responseData['code'] == 200 && responseData['data'] != null) {
-          return responseData['data']['response'] as String?;
+      final responseData = response.data;
+
+      // 检查API返回的状态码，若不为200则抛出错误
+      if (responseData['code'] != 200) {
+        if (responseData['error'] != null) {
+          throw responseData['error'].toString();
+        } else if (responseData['message'] != null) {
+          throw responseData['message'].toString();
         } else {
-          throw responseData['error'] ?? responseData['message'] ?? '请求失败';
+          throw '请求错误：${responseData['code']}';
         }
+      }
+
+      // 正常情况下返回响应
+      if (responseData['data'] != null) {
+        return responseData['data']['response'] as String?;
       } else {
-        throw '请求失败: ${response.statusCode}';
+        throw '响应数据为空';
       }
     } catch (e) {
       throw _getErrorMessage(e);

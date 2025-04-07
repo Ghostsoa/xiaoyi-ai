@@ -100,6 +100,7 @@ class CharacterCard {
   final Color userBubbleColor; // 用户气泡颜色
   final Color userTextColor; // 用户文字颜色
   final double backgroundOpacity; // 背景透明度
+  final String? openingMessage; // 开场白
 
   bool get isGroup => chatType == ChatType.group; // 添加 isGroup getter
 
@@ -124,6 +125,7 @@ class CharacterCard {
     this.userBubbleColor = const Color(0xFF000000), // 纯黑色
     this.userTextColor = const Color(0xFFFFFFFF), // 纯白色
     this.backgroundOpacity = 0.0,
+    this.openingMessage, // 开场白
   });
 
   // 生成专属编码
@@ -155,6 +157,7 @@ class CharacterCard {
         'userBubbleColor': userBubbleColor.value,
         'userTextColor': userTextColor.value,
         'backgroundOpacity': backgroundOpacity,
+        'openingMessage': openingMessage, // 开场白
       };
 
   factory CharacterCard.fromJson(Map<String, dynamic> json) => CharacterCard(
@@ -188,5 +191,6 @@ class CharacterCard {
         userTextColor: Color(json['userTextColor'] as int? ?? 0xFFFFFFFF),
         backgroundOpacity:
             (json['backgroundOpacity'] as num?)?.toDouble() ?? 0.0,
+        openingMessage: json['openingMessage'] as String?, // 开场白
       );
 }

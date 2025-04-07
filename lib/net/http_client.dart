@@ -113,10 +113,10 @@ class HttpClient {
       },
     ));
 
-    // 配置自定义的HttpClientAdapter
+    // 配置自定义的HttpClientAdapter - 启用SSL证书验证
     (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate =
         (client) {
-      client.badCertificateCallback = (cert, host, port) => true;
+      // 启用证书验证，不再使用badCertificateCallback = true
       return client;
     };
 

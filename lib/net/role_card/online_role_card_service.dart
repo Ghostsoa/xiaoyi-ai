@@ -78,6 +78,7 @@ class OnlineRoleCardService {
   Future<({List<OnlineRoleCard> list, int total})> getUserRoleCards({
     int page = 1,
     int pageSize = 20,
+    String visibility = 'all',
   }) async {
     try {
       final response = await _httpClient.get(
@@ -85,6 +86,7 @@ class OnlineRoleCardService {
         queryParameters: {
           'page': page.toString(),
           'page_size': pageSize.toString(),
+          'visibility': visibility,
         },
       );
 
@@ -104,6 +106,22 @@ class OnlineRoleCardService {
   Future<void> deleteCard(String code) async {
     try {
       await _httpClient.delete('/role-cards/$code');
+    } catch (e) {
+      throw _getErrorMessage(e);
+    }
+  }
+
+  /// 切换角色卡公开/非公开状态
+  Future<void> toggleCardStatus(String code, int status) async {
+    try {
+      final formData = FormData.fromMap({
+        'status': status.toString(),
+      });
+
+      await _httpClient.post(
+        '/role-cards/$code/status',
+        data: formData,
+      );
     } catch (e) {
       throw _getErrorMessage(e);
     }

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../../model/character_card.dart';
 import '../../service/image_service.dart';
 import '../../service/chat_history_service.dart';
-import '../chat/chat_page.dart';
 import '../../components/custom_snack_bar.dart';
 import '../../service/chat_list_service.dart';
 import '../../model/chat_message.dart';
-import '../chat/group_chat_page.dart';
+import '../../page/chat/chat_page.dart';
+import '../../page/chat/group_chat_page.dart';
 
 class CharacterDetailPage extends StatelessWidget {
   final CharacterCard card;
@@ -316,6 +316,15 @@ class CharacterDetailPage extends StatelessWidget {
                             // 初始化历史记录
                             final history =
                                 await chatHistoryService.getHistory(card.code);
+
+                            // 如果是单人聊天且历史记录为空，且有开场白，则添加开场白作为第一条消息
+                            if (card.chatType == ChatType.single &&
+                                history.messages.isEmpty &&
+                                card.openingMessage != null &&
+                                card.openingMessage!.isNotEmpty) {
+                              history.addMessage(false, card.openingMessage!);
+                              await chatHistoryService.saveHistory(history);
+                            }
 
                             // 创建或更新消息列表项
                             final message = history.messages.isNotEmpty

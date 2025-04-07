@@ -5,8 +5,8 @@ import 'pages/log/log_manage_page.dart';
 import 'pages/version/version_manage_page.dart';
 import 'pages/card/card_manage_page.dart';
 import 'pages/notification/admin_notification_page.dart';
-import 'pages/device/device_blacklist_page.dart';
 import 'pages/key_manager/model_series_page.dart';
+import 'pages/plaza/plaza_manage_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -38,16 +38,16 @@ class _AdminPageState extends State<AdminPage> {
       page: const CardManagePage(),
     ),
     _NavigationItem(
+      id: 'plaza_manage',
+      title: '大厅管理',
+      icon: Icons.public,
+      page: const PlazaManagePage(),
+    ),
+    _NavigationItem(
       id: 'notification_manage',
       title: '通知管理',
       icon: Icons.notifications,
       page: const AdminNotificationPage(),
-    ),
-    _NavigationItem(
-      id: 'device_blacklist',
-      title: '设备黑名单',
-      icon: Icons.phonelink_lock,
-      page: const DeviceBlacklistPage(),
     ),
     _NavigationItem(
       id: 'model_series',

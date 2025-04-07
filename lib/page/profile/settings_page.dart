@@ -9,6 +9,15 @@ import '../../components/dialogs/disclaimer_dialog.dart';
 import '../../components/dialogs/privacy_policy_dialog.dart';
 import '../../net/profile/profile_service.dart';
 import '../../net/http_client.dart';
+import '../../service/chat_history_service.dart';
+import '../../dao/chat_history_dao.dart';
+import '../../dao/character_card_dao.dart';
+import '../../service/character_card_service.dart';
+import '../../utils/chat_export_import_util.dart';
+import '../../components/loading_overlay.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../settings/import_page.dart';
+import '../about/about_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -443,6 +452,122 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const SizedBox(height: 16),
+              // 数据管理
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Text(
+                            '数据管理',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.download,
+                        color: Colors.white,
+                      ),
+                      title: const Text(
+                        '导出所有数据',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        '备份所有角色卡和聊天记录',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      onTap: () async {
+                        try {
+                          // 获取服务实例
+                          final prefs = await SharedPreferences.getInstance();
+                          final characterCardDao = CharacterCardDao(prefs);
+                          final chatHistoryDao = ChatHistoryDao(prefs);
+                          final characterCardService =
+                              CharacterCardService(characterCardDao, 'user123');
+                          final chatHistoryService =
+                              ChatHistoryService(chatHistoryDao);
+
+                          if (mounted) {
+                            // 使用加载动画并导出所有数据
+                            await LoadingOverlay.show(
+                              context,
+                              text: '正在导出数据...',
+                              future: () => ChatExportImportUtil.exportAllData(
+                                context,
+                                characterCardService,
+                                chatHistoryService,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            CustomSnackBar.show(context, message: '导出失败: $e');
+                          }
+                        }
+                      },
+                    ),
+                    Divider(color: Colors.white.withOpacity(0.1)),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.upload_file,
+                        color: Colors.white,
+                      ),
+                      title: const Text(
+                        '导入数据',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        '导入备份的角色卡和聊天记录',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      onTap: () async {
+                        // 获取ChatHistoryService实例
+                        final prefs = await SharedPreferences.getInstance();
+                        final chatHistoryDao = ChatHistoryDao(prefs);
+                        final chatHistoryService =
+                            ChatHistoryService(chatHistoryDao);
+
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ImportPage(
+                                chatHistoryService: chatHistoryService,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               // 账号设置
               Container(
                 decoration: BoxDecoration(
@@ -527,37 +652,14 @@ class _SettingsPageState extends State<SettingsPage> {
                           fontSize: 16,
                         ),
                       ),
-                      onTap: () => AboutUsDialog.show(context),
-                    ),
-                    Divider(color: Colors.white.withOpacity(0.1)),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.privacy_tip_outlined,
-                        color: Colors.white,
-                      ),
-                      title: const Text(
-                        '隐私政策',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                      onTap: () => PrivacyPolicyDialog.show(context),
-                    ),
-                    Divider(color: Colors.white.withOpacity(0.1)),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.gavel_outlined,
-                        color: Colors.white,
-                      ),
-                      title: const Text(
-                        '免责声明',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                      onTap: () => DisclaimerDialog.show(context),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AboutPage(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

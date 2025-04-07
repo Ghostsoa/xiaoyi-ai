@@ -5,6 +5,7 @@ import 'local_plaza_page.dart';
 import 'online_plaza_page.dart';
 import 'character_edit_page.dart';
 import '../../service/chat_list_service.dart';
+import 'creation_plaza_page.dart';
 
 class PlazaPage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -25,11 +26,12 @@ class _PlazaPageState extends State<PlazaPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _localPlazaKey = GlobalKey<LocalPlazaPageState>();
+  final _creationPlazaKey = GlobalKey<CreationPlazaPageState>();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -66,6 +68,7 @@ class _PlazaPageState extends State<PlazaPage>
             tabs: const [
               Tab(text: '本地'),
               Tab(text: '在线'),
+              Tab(text: '创作'),
             ],
           ),
           actions: [
@@ -102,6 +105,9 @@ class _PlazaPageState extends State<PlazaPage>
                   chatListService: widget.chatListService,
                 ),
                 const OnlinePlazaPage(),
+                CreationPlazaPage(
+                  key: _creationPlazaKey,
+                ),
               ],
             ),
           ),

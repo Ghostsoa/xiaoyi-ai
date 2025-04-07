@@ -113,6 +113,22 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.19.0"
+  connectivity_plus:
+    dependency: "direct main"
+    description:
+      name: connectivity_plus
+      sha256: "04bf81bb0b77de31557b58d052b24b3eee33f09a6e7a8c68a3e247c7df19ec27"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "6.1.3"
+  connectivity_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: connectivity_plus_platform_interface
+      sha256: "42657c1715d48b167930d5f34d00222ac100475f73d10162ddf43e714932f204"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.1"
   cross_file:
     dependency: transitive
     description:
@@ -137,6 +153,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.8"
+  dbus:
+    dependency: transitive
+    description:
+      name: dbus
+      sha256: "79e0c23480ff85dc68de79e2cd6334add97e48f7f4865d17686dd6ea81a47e8c"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.7.11"
   device_info_plus:
     dependency: "direct main"
     description:
@@ -217,6 +241,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "7.0.1"
+  file_picker:
+    dependency: "direct main"
+    description:
+      name: file_picker
+      sha256: "36a1652d99cb6bf8ccc8b9f43aded1fd60b234d23ce78af422c07f950a436ef7"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "10.0.0"
   file_selector_linux:
     dependency: transitive
     description:
@@ -286,6 +318,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.1.0"
+  flutter_image_gallery_saver:
+    dependency: "direct main"
+    description:
+      name: flutter_image_gallery_saver
+      sha256: "7140dbdfa1006bf8357232bff257a73b92282906aa28126fa40d1e95bf454550"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.0.2"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -520,6 +560,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.0"
+  nm:
+    dependency: transitive
+    description:
+      name: nm
+      sha256: "2c9aae4127bdc8993206464fcc063611e0e36e72018696cd9631023a31b24254"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.5.0"
   octo_image:
     dependency: transitive
     description:
@@ -680,6 +728,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.0.1"
+  proxy_manager:
+    dependency: "direct main"
+    description:
+      name: proxy_manager
+      sha256: "4cdb8853bcedc1a6879c6d940d624d740e1c76ee6b83377b13270f96a8415a37"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.0.3"
   pull_to_refresh:
     dependency: "direct main"
     description:
@@ -696,6 +752,22 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.28.0"
+  share_plus:
+    dependency: "direct main"
+    description:
+      name: share_plus
+      sha256: fce43200aa03ea87b91ce4c3ac79f0cecd52e2a7a56c7a4185023c271fbfa6da
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "10.1.4"
+  share_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: share_plus_platform_interface
+      sha256: cc012a23fc2d479854e6c80150696c4a5f5bb62cb89af4de1c505cf78d0a5d0b
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "5.0.2"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -757,6 +829,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  socks5_proxy:
+    dependency: "direct main"
+    description:
+      name: socks5_proxy
+      sha256: "403ae45ded28b8a6a61f65275fab4a3d931191fe8dc7142e30d51deb5d50080e"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.0"
   source_span:
     dependency: transitive
     description:

@@ -23,6 +23,7 @@ class CharacterCardService {
     required String modelName,
     required ModelParameters modelParams,
     required List<GroupCharacter> groupCharacters,
+    String? openingMessage,
     Color aiBubbleColor = const Color(0xFFFFFFFF),
     Color aiTextColor = const Color(0xFF000000),
     Color userBubbleColor = const Color(0xFF000000),
@@ -51,6 +52,7 @@ class CharacterCardService {
       userBubbleColor: userBubbleColor,
       userTextColor: userTextColor,
       backgroundOpacity: backgroundOpacity,
+      openingMessage: chatType != ChatType.group ? openingMessage : null,
     );
 
     await _dao.saveCard(card);
