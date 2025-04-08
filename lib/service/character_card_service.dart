@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../dao/character_card_dao.dart';
 import '../model/character_card.dart';
+import '../dao/storage_dao.dart';
 
 class CharacterCardService {
   final CharacterCardDao _dao;
@@ -29,8 +30,19 @@ class CharacterCardService {
     Color userBubbleColor = const Color(0xFF000000),
     Color userTextColor = const Color(0xFFFFFFFF),
     double backgroundOpacity = 0.0,
+    bool hideSettings = false,
   }) async {
-    final code = CharacterCard.generateCode(title, _userId, DateTime.now());
+    // 获取当前登录用户的ID
+    final storageDao = StorageDao();
+    final currentUserId = storageDao.getUserId();
+
+    // 如果获取不到用户ID，则抛出异常
+    if (currentUserId == null) {
+      throw Exception('创建角色卡失败：用户未登录或无法获取用户ID');
+    }
+
+    final code =
+        CharacterCard.generateCode(title, currentUserId, DateTime.now());
 
     final card = CharacterCard(
       code: code,
@@ -53,6 +65,8 @@ class CharacterCardService {
       userTextColor: userTextColor,
       backgroundOpacity: backgroundOpacity,
       openingMessage: chatType != ChatType.group ? openingMessage : null,
+      authorId: currentUserId,
+      hideSettings: hideSettings,
     );
 
     await _dao.saveCard(card);

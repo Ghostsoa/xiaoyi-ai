@@ -9,6 +9,7 @@ import '../../service/chat_list_service.dart';
 import '../../components/custom_snack_bar.dart';
 import '../../net/role_card/role_card_service.dart';
 import '../../components/loading_overlay.dart';
+import '../../dao/storage_dao.dart';
 
 class LocalPlazaPage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -30,6 +31,8 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
   List<CharacterCard>? _cards;
   List<CharacterCard> _filteredCards = [];
   bool _isLoading = true;
+  String? _currentUserId;
+  final _storageDao = StorageDao();
 
   // 分类相关
   String _currentCategory = '全部';
@@ -62,7 +65,16 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _loadCards();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final userId = _storageDao.getUserId();
+    print('LocalPlazaPage._loadCurrentUserId: userId = $userId');
+    setState(() {
+      _currentUserId = userId;
+    });
   }
 
   Future<void> refreshCards() async {
@@ -324,6 +336,9 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
   }
 
   Widget _buildCharacterCard(CharacterCard card) {
+    // 检查当前用户是否是卡片作者
+    bool isAuthor = _currentUserId != null && card.authorId == _currentUserId;
+
     return Stack(
       children: [
         Card(
@@ -512,48 +527,70 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
                       color: Colors.white.withOpacity(0.7),
                     ),
                     color: Colors.black87,
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, color: Colors.white70),
-                            SizedBox(width: 8),
-                            Text(
-                              '编辑',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
+                    itemBuilder: (context) {
+                      final List<PopupMenuItem<String>> items = [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, color: Colors.white70),
+                              SizedBox(width: 8),
+                              Text(
+                                '编辑',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'upload',
-                        child: Row(
-                          children: [
-                            Icon(Icons.cloud_upload_outlined,
-                                color: Colors.white70),
-                            SizedBox(width: 8),
-                            Text(
-                              '上传到大厅',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
+                        const PopupMenuItem(
+                          value: 'upload',
+                          child: Row(
+                            children: [
+                              Icon(Icons.cloud_upload_outlined,
+                                  color: Colors.white70),
+                              SizedBox(width: 8),
+                              Text(
+                                '上传到大厅',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text(
-                              '删除',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
+                        // 对所有用户显示隐藏/显示设定选项
+                        PopupMenuItem(
+                          value: 'toggle_hide_settings',
+                          child: Row(
+                            children: [
+                              Icon(
+                                card.hideSettings
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: Colors.white70,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                card.hideSettings ? '显示设定' : '隐藏设定',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                '删除',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ];
+                      return items;
+                    },
                     onSelected: (value) async {
                       if (value == 'edit') {
                         final result = await Navigator.push<bool>(
@@ -705,6 +742,63 @@ class LocalPlazaPageState extends State<LocalPlazaPage> {
                           }
                         } catch (e) {
                           CustomSnackBar.show(context, message: '上传失败: $e');
+                        }
+                      } else if (value == 'toggle_hide_settings') {
+                        // 打印当前用户ID和角色卡作者ID
+                        print('当前用户ID: $_currentUserId');
+                        print('角色卡作者ID: ${card.authorId}');
+
+                        // 如果作者ID为空，则将当前用户设为作者
+                        final String? authorId =
+                            card.authorId ?? _currentUserId;
+
+                        // 如果用户不是作者，且作者不为空，显示提示并返回
+                        if (card.authorId != null && !isAuthor) {
+                          CustomSnackBar.show(context, message: '只有作者可以修改此设置');
+                          return;
+                        }
+
+                        // 更新角色卡的隐藏设定状态
+                        final updatedCard = CharacterCard(
+                          code: card.code,
+                          title: card.title,
+                          description: card.description,
+                          tags: card.tags,
+                          setting: card.setting,
+                          userSetting: card.userSetting,
+                          chatType: card.chatType,
+                          statusBarType: card.statusBarType,
+                          statusBar: card.statusBar,
+                          coverImageBase64: card.coverImageBase64,
+                          backgroundImageBase64: card.backgroundImageBase64,
+                          avatarBase64: card.avatarBase64,
+                          modelName: card.modelName,
+                          modelParams: card.modelParams,
+                          groupCharacters: card.groupCharacters,
+                          aiBubbleColor: card.aiBubbleColor,
+                          aiTextColor: card.aiTextColor,
+                          userBubbleColor: card.userBubbleColor,
+                          userTextColor: card.userTextColor,
+                          backgroundOpacity: card.backgroundOpacity,
+                          openingMessage: card.openingMessage,
+                          authorId: authorId, // 使用可能更新的作者ID
+                          hideSettings: !card.hideSettings, // 切换隐藏设定状态
+                        );
+
+                        try {
+                          await widget.characterCardService
+                              .updateCard(updatedCard);
+                          _loadCards();
+
+                          String message =
+                              updatedCard.hideSettings ? '设定已隐藏' : '设定已显示';
+                          // 如果是首次设置作者ID，添加提示信息
+                          if (card.authorId == null && _currentUserId != null) {
+                            message += '，已将您设为作者';
+                          }
+                          CustomSnackBar.show(context, message: message);
+                        } catch (e) {
+                          CustomSnackBar.show(context, message: '操作失败: $e');
                         }
                       } else if (value == 'delete') {
                         final confirm = await showDialog<bool>(

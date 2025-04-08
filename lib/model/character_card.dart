@@ -101,6 +101,8 @@ class CharacterCard {
   final Color userTextColor; // 用户文字颜色
   final double backgroundOpacity; // 背景透明度
   final String? openingMessage; // 开场白
+  final String? authorId; // 作者ID
+  final bool hideSettings; // 是否隐藏设定
 
   bool get isGroup => chatType == ChatType.group; // 添加 isGroup getter
 
@@ -126,6 +128,8 @@ class CharacterCard {
     this.userTextColor = const Color(0xFFFFFFFF), // 纯白色
     this.backgroundOpacity = 0.0,
     this.openingMessage, // 开场白
+    this.authorId, // 作者ID
+    this.hideSettings = false, // 是否隐藏设定，默认为false
   });
 
   // 生成专属编码
@@ -158,6 +162,8 @@ class CharacterCard {
         'userTextColor': userTextColor.value,
         'backgroundOpacity': backgroundOpacity,
         'openingMessage': openingMessage, // 开场白
+        'authorId': authorId, // 作者ID
+        'hideSettings': hideSettings, // 是否隐藏设定
       };
 
   factory CharacterCard.fromJson(Map<String, dynamic> json) => CharacterCard(
@@ -192,5 +198,7 @@ class CharacterCard {
         backgroundOpacity:
             (json['backgroundOpacity'] as num?)?.toDouble() ?? 0.0,
         openingMessage: json['openingMessage'] as String?, // 开场白
+        authorId: json['authorId'] as String?, // 作者ID
+        hideSettings: json['hideSettings'] as bool? ?? false, // 是否隐藏设定
       );
 }

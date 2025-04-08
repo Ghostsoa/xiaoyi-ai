@@ -8,6 +8,7 @@ import '../../service/chat_history_service.dart';
 import '../../utils/chat_export_import_util.dart';
 import '../../components/loading_overlay.dart';
 import '../../components/custom_snack_bar.dart';
+import '../../dao/storage_dao.dart';
 
 class ImportPage extends StatefulWidget {
   final ChatHistoryService chatHistoryService;
@@ -32,7 +33,9 @@ class _ImportPageState extends State<ImportPage> {
   Future<void> _initServices() async {
     final prefs = await SharedPreferences.getInstance();
     final characterCardDao = CharacterCardDao(prefs);
-    _characterCardService = CharacterCardService(characterCardDao, 'user123');
+    final storageDao = StorageDao();
+    final userId = storageDao.getUserId() ?? 'guest_user';
+    _characterCardService = CharacterCardService(characterCardDao, userId);
   }
 
   Future<void> _importFromFile() async {

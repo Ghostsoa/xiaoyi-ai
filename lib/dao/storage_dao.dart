@@ -112,4 +112,28 @@ class StorageDao {
   String getApiNode() {
     return _prefs.getString(_apiNodeKey) ?? 'xy.xiaoyi.live'; // 默认使用xy节点
   }
+
+  // 获取当前用户ID
+  String? getUserId() {
+    final userData = getUser();
+    if (userData == null) {
+      print('StorageDao.getUserId: 用户数据为空');
+      return null;
+    }
+
+    final user = userData['user'] as Map<String, dynamic>?;
+    if (user == null) {
+      print('StorageDao.getUserId: user字段为空, userData = $userData');
+      return null;
+    }
+
+    final id = user['id']?.toString();
+    if (id == null) {
+      print('StorageDao.getUserId: id字段为空, user = $user');
+      return null;
+    }
+
+    print('StorageDao.getUserId: 成功获取用户ID = $id');
+    return id;
+  }
 }

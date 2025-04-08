@@ -9,6 +9,7 @@ import '../../net/chat/model_service.dart';
 import '../../components/character_edit/chat_type_selector.dart';
 import '../../components/character_edit/status_bar_editor.dart';
 import '../../components/character_edit/group_characters_editor.dart';
+import '../../dao/storage_dao.dart';
 
 class CharacterEditPage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -46,6 +47,7 @@ class _CharacterEditPageState extends State<CharacterEditPage> {
   late double _backgroundOpacity;
   late StatusBarType _statusBarType;
   late String _modelName;
+  late bool _hideSettings;
   final _modelService = ModelService();
   bool _isLoadingModels = true;
   List<ModelGroup> _modelGroups = [];
@@ -80,6 +82,7 @@ class _CharacterEditPageState extends State<CharacterEditPage> {
     _statusBarType = widget.card?.statusBarType ?? StatusBarType.none;
     _openingMessageController =
         TextEditingController(text: widget.card?.openingMessage ?? '');
+    _hideSettings = widget.card?.hideSettings ?? false;
 
     // 获取可用模型列表
     _loadModelGroups();
@@ -163,6 +166,7 @@ class _CharacterEditPageState extends State<CharacterEditPage> {
           openingMessage: _openingMessageController.text.isEmpty
               ? null
               : _openingMessageController.text,
+          hideSettings: _hideSettings,
         );
       } else {
         // 更新现有卡片
@@ -189,6 +193,8 @@ class _CharacterEditPageState extends State<CharacterEditPage> {
           openingMessage: _openingMessageController.text.isEmpty
               ? null
               : _openingMessageController.text,
+          authorId: widget.card!.authorId,
+          hideSettings: _hideSettings,
         );
         await widget.characterCardService.updateCard(updatedCard);
       }
@@ -255,6 +261,76 @@ class _CharacterEditPageState extends State<CharacterEditPage> {
     bool isRequired = false,
     TextInputType? keyboardType,
   }) {
+    // 特殊处理设定字段
+    if (label == '设定' && widget.card != null && widget.card!.hideSettings) {
+      // 获取当前用户ID
+      final storageDao = StorageDao();
+      final currentUserId = storageDao.getUserId();
+
+      // 检查是否有权限查看设定
+      final isAuthor =
+          currentUserId != null && currentUserId == widget.card!.authorId;
+
+      if (!isAuthor) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                height: 2,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                border: Border.all(
+                  color: Colors.red.withOpacity(0.3),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        color: Colors.red.withOpacity(0.8),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '无权限查看',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '该角色卡的设定内容已被作者隐藏，只有作者可以查看。',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
+    // 常规字段显示
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

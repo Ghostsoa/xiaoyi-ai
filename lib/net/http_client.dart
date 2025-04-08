@@ -12,7 +12,7 @@ class HttpClient {
   static BuildContext? _context;
   String _appVersion = '1.0.0'; // 默认版本号
   bool _isInitialized = false;
-  String _baseUrl = '';
+  String _baseUrl = 'https://hk.xiaoyi.ink/api/v1';
 
   // 设置全局 context
   static void setContext(BuildContext context) {
@@ -37,64 +37,7 @@ class HttpClient {
     }
   }
 
-  // 更新API节点
-  void updateApiNode(String node) {
-    // 保存到本地存储
-    _storageDao.saveApiNode(node);
-    // 更新基础URL
-    _baseUrl = 'https://$node/api/v1';
-    // 更新Dio实例的baseUrl
-    _dio.options.baseUrl = _baseUrl;
-  }
-
-  // 获取当前API节点
-  String getCurrentApiNode() {
-    return _storageDao.getApiNode();
-  }
-
-  // 获取所有可用节点
-  List<String> getAvailableNodes() {
-    return ['xy.xiaoyi.live', 'jp.xiaoyi.live'];
-  }
-
-  // 获取节点描述
-  String getNodeDescription(String node) {
-    switch (node) {
-      case 'xy.xiaoyi.live':
-        return '美国直连';
-      case 'jp.xiaoyi.live':
-        return '日本中转';
-      default:
-        return '';
-    }
-  }
-
-  // 测试节点延迟
-  Future<int> pingNode(String node) async {
-    try {
-      final stopwatch = Stopwatch()..start();
-      // 发送真实的HTTP请求到API服务器
-      final dio = Dio(BaseOptions(
-        baseUrl: 'https://$node',
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-        sendTimeout: const Duration(seconds: 5),
-      ));
-
-      // 使用专门的ping端点测试延迟
-      await dio.get('/api/v1/ping');
-      stopwatch.stop();
-      return stopwatch.elapsedMilliseconds;
-    } catch (e) {
-      print('Ping $node 失败: $e');
-      return -1; // 发生错误或超时
-    }
-  }
-
   HttpClient._internal() {
-    // 从存储中获取当前节点
-    final node = _storageDao.getApiNode();
-    _baseUrl = 'https://$node/api/v1';
     _setupDio();
   }
 
@@ -246,13 +189,13 @@ class HttpClient {
     if (error is DioException) {
       switch (error.type) {
         case DioExceptionType.connectionTimeout:
-          _showErrorMessage('连接超时，请检查网络或选择其他节点');
+          _showErrorMessage('连接超时，请检查网络');
           break;
         case DioExceptionType.sendTimeout:
-          _showErrorMessage('发送超时，请检查网络或选择其他节点');
+          _showErrorMessage('发送超时，请检查网络');
           break;
         case DioExceptionType.receiveTimeout:
-          _showErrorMessage('接收超时，请检查网络或选择其他节点');
+          _showErrorMessage('接收超时，请检查网络');
           break;
         case DioExceptionType.badCertificate:
           _showErrorMessage('服务器证书验证失败');
@@ -269,7 +212,7 @@ class HttpClient {
         case DioExceptionType.unknown:
           if (error.error != null &&
               error.error.toString().contains('SocketException')) {
-            _showErrorMessage('无法连接到服务器，请检查网络或选择其他节点');
+            _showErrorMessage('无法连接到服务器，请检查网络');
           } else {
             _showErrorMessage('未知错误：${error.message}');
           }
