@@ -728,14 +728,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "6.0.1"
-  proxy_manager:
-    dependency: "direct main"
-    description:
-      name: proxy_manager
-      sha256: "4cdb8853bcedc1a6879c6d940d624d740e1c76ee6b83377b13270f96a8415a37"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.0.3"
   pull_to_refresh:
     dependency: "direct main"
     description:
@@ -829,14 +821,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  socks5_proxy:
-    dependency: "direct main"
-    description:
-      name: socks5_proxy
-      sha256: "403ae45ded28b8a6a61f65275fab4a3d931191fe8dc7142e30d51deb5d50080e"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.0.0"
   source_span:
     dependency: transitive
     description:

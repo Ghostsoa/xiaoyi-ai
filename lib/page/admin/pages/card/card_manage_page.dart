@@ -12,29 +12,70 @@ class CardManagePage extends StatefulWidget {
 
 class _CardManagePageState extends State<CardManagePage> {
   bool _isLoading = false;
+  bool _isLoadingMore = false;
   List<Map<String, dynamic>> _batches = [];
-  final int _currentPage = 1;
+  int _currentPage = 1;
   final int _pageSize = 10;
+  int _totalItems = 0;
+  int _totalPages = 1;
   final List<String> _selectedBatchNos = [];
+  final ScrollController _scrollController = ScrollController();
+
+  final TextEditingController _batchNoController = TextEditingController();
+  int? _selectedCardType;
 
   @override
   void initState() {
     super.initState();
     _loadBatches();
+    _scrollController.addListener(_scrollListener);
   }
 
-  Future<void> _loadBatches() async {
+  @override
+  void dispose() {
+    _batchNoController.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 100) {
+      if (!_isLoading && !_isLoadingMore && _currentPage < _totalPages) {
+        _loadMoreBatches();
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    _currentPage = 1;
+    await _loadBatches(isRefresh: true);
+    return;
+  }
+
+  Future<void> _loadBatches({bool isRefresh = false}) async {
+    if (_isLoading && !isRefresh) return;
+
     setState(() {
-      _isLoading = true;
+      _isLoading = !isRefresh;
     });
 
     try {
       final result = await CardService.getCardBatches(
         page: _currentPage,
         pageSize: _pageSize,
+        batchNo: _batchNoController.text.trim().isNotEmpty
+            ? _batchNoController.text.trim()
+            : null,
+        cardType: _selectedCardType,
       );
+
       setState(() {
         _batches = List<Map<String, dynamic>>.from(result['items']);
+        _totalItems = result['total'] ?? 0;
+        _totalPages = (_totalItems / _pageSize).ceil();
+        _isLoading = false;
       });
     } catch (e) {
       if (mounted) {
@@ -47,6 +88,57 @@ class _CardManagePageState extends State<CardManagePage> {
         });
       }
     }
+  }
+
+  Future<void> _loadMoreBatches() async {
+    if (_isLoadingMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final nextPage = _currentPage + 1;
+      final result = await CardService.getCardBatches(
+        page: nextPage,
+        pageSize: _pageSize,
+        batchNo: _batchNoController.text.trim().isNotEmpty
+            ? _batchNoController.text.trim()
+            : null,
+        cardType: _selectedCardType,
+      );
+
+      final newBatches = List<Map<String, dynamic>>.from(result['items']);
+
+      setState(() {
+        _batches.addAll(newBatches);
+        _currentPage = nextPage;
+      });
+    } catch (e) {
+      if (mounted) {
+        CustomSnackBar.show(context, message: '加载更多卡密批次失败：$e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  void _search() {
+    _currentPage = 1;
+    _loadBatches();
+  }
+
+  void _resetSearch() {
+    setState(() {
+      _batchNoController.clear();
+      _selectedCardType = null;
+      _currentPage = 1;
+    });
+    _loadBatches();
   }
 
   Future<void> _generateCards() async {
@@ -206,6 +298,84 @@ class _CardManagePageState extends State<CardManagePage> {
             ],
           ),
         ),
+        // 搜索栏
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.05),
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _batchNoController,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    hintText: '输入批次号搜索',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.search, size: 18),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                  onSubmitted: (_) => _search(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<int?>(
+                value: _selectedCardType,
+                hint: const Text('卡密类型'),
+                alignment: AlignmentDirectional.centerStart,
+                items: const [
+                  DropdownMenuItem(
+                    value: null,
+                    child: Text('全部类型'),
+                  ),
+                  DropdownMenuItem(
+                    value: 1,
+                    child: Text('余额卡'),
+                  ),
+                  DropdownMenuItem(
+                    value: 2,
+                    child: Text('无限对话卡'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCardType = value;
+                  });
+                  _search();
+                },
+                isDense: true,
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _search,
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text('搜索', style: TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: _resetSearch,
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text('重置', style: TextStyle(fontSize: 14)),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -227,117 +397,165 @@ class _CardManagePageState extends State<CardManagePage> {
                         ],
                       ),
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: _batches.length,
-                      separatorBuilder: (context, index) =>
-                          const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final batch = _batches[index];
-                        final isSelected =
-                            _selectedBatchNos.contains(batch['batch_no']);
-
-                        return ListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          tileColor:
-                              Theme.of(context).primaryColor.withOpacity(0.02),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          leading: Checkbox(
-                            value: isSelected,
-                            onChanged: (value) {
-                              setState(() {
-                                if (value == true) {
-                                  _selectedBatchNos.add(batch['batch_no']);
-                                } else {
-                                  _selectedBatchNos.remove(batch['batch_no']);
+                  : RefreshIndicator(
+                      onRefresh: _handleRefresh,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: ListView.separated(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              itemCount:
+                                  _batches.length + (_isLoadingMore ? 1 : 0),
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                if (index == _batches.length) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.0,
+                                        ),
+                                      ),
+                                    ),
+                                  );
                                 }
-                              });
-                            },
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '批次号：${batch['batch_no']}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
+
+                                final batch = _batches[index];
+                                final isSelected = _selectedBatchNos
+                                    .contains(batch['batch_no']);
+
+                                return ListTile(
+                                  dense: true,
+                                  visualDensity: VisualDensity.compact,
+                                  tileColor: Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.02),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: batch['card_type'] == 1
-                                      ? Colors.blue.withOpacity(0.1)
-                                      : Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  batch['card_type'] == 1 ? '余额卡' : '无限对话卡',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: batch['card_type'] == 1
-                                        ? Colors.blue
-                                        : Colors.green,
+                                  leading: Checkbox(
+                                    value: isSelected,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          _selectedBatchNos
+                                              .add(batch['batch_no']);
+                                        } else {
+                                          _selectedBatchNos
+                                              .remove(batch['batch_no']);
+                                        }
+                                      });
+                                    },
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Row(
+                                  title: Row(
                                     children: [
-                                      Flexible(
+                                      Expanded(
                                         child: Text(
-                                          batch['card_type'] == 1
-                                              ? '小懿币${batch['amount']}'
-                                              : '时长：${batch['duration']}小时',
-                                          style: const TextStyle(fontSize: 12),
+                                          '批次号：${batch['batch_no']}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 13,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
-                                      Flexible(
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: batch['card_type'] == 1
+                                              ? Colors.blue.withOpacity(0.1)
+                                              : Colors.green.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
                                         child: Text(
-                                          '数量：${batch['count']}',
-                                          style: const TextStyle(fontSize: 12),
-                                          overflow: TextOverflow.ellipsis,
+                                          batch['card_type'] == 1
+                                              ? '余额卡'
+                                              : '无限对话卡',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: batch['card_type'] == 1
+                                                ? Colors.blue
+                                                : Colors.green,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  batch['card_type'] == 1
+                                                      ? '小懿币${batch['amount']}'
+                                                      : '时长：${batch['duration']}小时',
+                                                  style: const TextStyle(
+                                                      fontSize: 12),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Flexible(
+                                                child: Text(
+                                                  '数量：${batch['count']}',
+                                                  style: const TextStyle(
+                                                      fontSize: 12),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  trailing: TextButton(
+                                    onPressed: () =>
+                                        _viewBatchDetails(batch['batch_no']),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                    ),
+                                    child: const Text(
+                                      '详情',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          // 显示加载情况
+                          if (_batches.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                '共 $_totalItems 条记录，已加载 ${_batches.length} 条',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                          trailing: TextButton(
-                            onPressed: () =>
-                                _viewBatchDetails(batch['batch_no']),
-                            style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8),
-                            ),
-                            child: const Text(
-                              '详情',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
         ),
       ],

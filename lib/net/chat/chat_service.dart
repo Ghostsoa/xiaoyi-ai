@@ -42,7 +42,7 @@ class ChatService {
             .toList(),
       };
 
-      final response = await _httpClient.post(
+      final response = await _httpClient.postForChat(
         _decideEndpoint,
         data: requestBody,
       );
@@ -111,8 +111,8 @@ class ChatService {
         'frequency_penalty': card.modelParams.frequencyPenalty,
       };
 
-      // 发送请求
-      final response = await _httpClient.post(
+      // 使用长超时发送请求 (180秒)
+      final response = await _httpClient.postForChat(
         _chatEndpoint,
         data: requestBody,
       );
@@ -148,7 +148,7 @@ class ChatService {
         'prompt': prompt,
       };
 
-      final response = await _httpClient.post(
+      final response = await _httpClient.postForChat(
         _statusEndpoint,
         data: requestBody,
       );

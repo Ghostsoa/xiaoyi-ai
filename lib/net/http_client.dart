@@ -19,6 +19,28 @@ class HttpClient {
     _context = context;
   }
 
+  // 切换API节点
+  Future<void> switchApiNode(String node) async {
+    _baseUrl = 'https://$node/api/v1';
+    await _storageDao.saveApiNode(node);
+    _setupDio(); // 重新设置Dio
+  }
+
+  // 获取当前节点
+  String getCurrentNode() {
+    return _storageDao.getApiNode();
+  }
+
+  // 获取默认节点
+  String getDefaultNode() {
+    return _storageDao.getDefaultNode();
+  }
+
+  // 获取CDN节点
+  String getCdnNode() {
+    return _storageDao.getCdnNode();
+  }
+
   factory HttpClient() {
     return _instance;
   }
@@ -153,6 +175,41 @@ class HttpClient {
       return response;
     } catch (e) {
       print('POST请求失败: $e');
+      _handleDioError(e);
+      rethrow;
+    }
+  }
+
+  // 对话服务专用POST方法，具有更长的超时时间
+  Future<Response> postForChat(String path,
+      {dynamic data, Options? options}) async {
+    try {
+      print('发起长时间对话POST请求: $path');
+
+      // 为对话服务创建特殊的选项，设置更长的超时时间
+      final chatOptions = Options(
+        sendTimeout: const Duration(seconds: 180),
+        receiveTimeout: const Duration(seconds: 180),
+      );
+
+      // 合并用户传入的options
+      if (options != null) {
+        chatOptions.headers = options.headers;
+        chatOptions.contentType = options.contentType;
+        chatOptions.responseType = options.responseType;
+        chatOptions.extra = options.extra;
+      }
+
+      print('对话POST请求数据: $data');
+      final response = await _dio.post(
+        path,
+        data: data,
+        options: chatOptions,
+      );
+      print('对话POST请求成功: ${response.data}');
+      return response;
+    } catch (e) {
+      print('对话POST请求失败: $e');
       _handleDioError(e);
       rethrow;
     }

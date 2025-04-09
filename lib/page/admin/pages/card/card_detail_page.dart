@@ -22,6 +22,10 @@ class _CardDetailPageState extends State<CardDetailPage> {
   int _totalPages = 1;
   final ScrollController _scrollController = ScrollController();
 
+  // 添加搜索参数
+  final TextEditingController _cardNoController = TextEditingController();
+  String? _selectedUsedStatus;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +37,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
   void dispose() {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
+    _cardNoController.dispose();
     super.dispose();
   }
 
@@ -54,8 +59,20 @@ class _CardDetailPageState extends State<CardDetailPage> {
     });
 
     try {
+      // 构建查询参数
+      dynamic usedParam;
+      if (_selectedUsedStatus == '已使用') {
+        usedParam = true;
+      } else if (_selectedUsedStatus == '未使用') {
+        usedParam = false;
+      }
+
       final result = await CardService.getCardList(
         batchNo: widget.batchNo,
+        cardNo: _cardNoController.text.trim().isNotEmpty
+            ? _cardNoController.text.trim()
+            : null,
+        used: usedParam,
         page: _currentPage,
         pageSize: _pageSize,
       );
@@ -86,8 +103,21 @@ class _CardDetailPageState extends State<CardDetailPage> {
 
     try {
       final nextPage = _currentPage + 1;
+
+      // 构建查询参数
+      dynamic usedParam;
+      if (_selectedUsedStatus == '已使用') {
+        usedParam = true;
+      } else if (_selectedUsedStatus == '未使用') {
+        usedParam = false;
+      }
+
       final result = await CardService.getCardList(
         batchNo: widget.batchNo,
+        cardNo: _cardNoController.text.trim().isNotEmpty
+            ? _cardNoController.text.trim()
+            : null,
+        used: usedParam,
         page: nextPage,
         pageSize: _pageSize,
       );
@@ -146,6 +176,18 @@ class _CardDetailPageState extends State<CardDetailPage> {
     if (mounted) {
       CustomSnackBar.show(context, message: '已复制${unusedCards.length}个未使用的卡号');
     }
+  }
+
+  void _search() {
+    _loadCards();
+  }
+
+  void _resetSearch() {
+    setState(() {
+      _cardNoController.clear();
+      _selectedUsedStatus = null;
+    });
+    _loadCards();
   }
 
   @override
@@ -234,6 +276,86 @@ class _CardDetailPageState extends State<CardDetailPage> {
         ),
         child: Column(
           children: [
+            // 搜索区域
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _cardNoController,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        hintText: '输入卡号搜索',
+                        hintStyle: TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white30),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        prefixIcon:
+                            Icon(Icons.search, size: 18, color: Colors.white70),
+                        filled: true,
+                        fillColor: Colors.black12,
+                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
+                      onSubmitted: (_) => _search(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white30),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: DropdownButton<String?>(
+                      value: _selectedUsedStatus,
+                      hint: const Text('使用状态',
+                          style: TextStyle(color: Colors.white70)),
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down,
+                          color: Colors.white70),
+                      dropdownColor: Colors.black87,
+                      items: const [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text('全部状态',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: '已使用',
+                          child: Text('已使用',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: '未使用',
+                          child: Text('未使用',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedUsedStatus = value;
+                        });
+                        _search();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: _resetSearch,
+                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    tooltip: '重置筛选',
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,
@@ -248,6 +370,7 @@ class _CardDetailPageState extends State<CardDetailPage> {
                       DataColumn(label: Text('卡号')),
                       DataColumn(label: Text('类型')),
                       DataColumn(label: Text('状态')),
+                      DataColumn(label: Text('使用者ID')),
                       DataColumn(label: Text('详情')),
                       DataColumn(label: Text('操作')),
                     ],
@@ -278,6 +401,14 @@ class _CardDetailPageState extends State<CardDetailPage> {
                                     ? Colors.white70
                                     : Colors.greenAccent,
                               ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              card['used'] == true
+                                  ? '${card['user_id'] ?? '未知'}'
+                                  : '-',
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                           DataCell(
@@ -325,9 +456,23 @@ class _CardDetailPageState extends State<CardDetailPage> {
               ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                '已加载 ${_cards.length}/$_totalItems 条',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_cardNoController.text.isNotEmpty ||
+                      _selectedUsedStatus != null)
+                    Text(
+                      '搜索结果: ${_selectedUsedStatus ?? ''} ${_cardNoController.text.isNotEmpty ? '卡号包含 "${_cardNoController.text}"' : ''}',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 12),
+                    )
+                  else
+                    const SizedBox(),
+                  Text(
+                    '已加载 ${_cards.length}/$_totalItems 条',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
               ),
             ),
           ],

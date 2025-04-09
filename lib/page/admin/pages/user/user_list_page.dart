@@ -6,6 +6,7 @@ import '../../../../net/admin/user_service.dart';
 import '../../../../components/loading_indicator.dart';
 import '../../../../net/admin/asset_service.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class UserListPage extends StatefulWidget {
   const UserListPage({super.key});
@@ -18,40 +19,103 @@ class _UserListPageState extends State<UserListPage> {
   final _searchController = TextEditingController();
   final _userService = AdminUserService();
   final _assetService = AdminAssetService();
+  final _scrollController = ScrollController();
   bool _isLoading = false;
+  bool _isLoadingMore = false;
   List<Map<String, dynamic>> _users = [];
   int _currentPage = 1;
   int _totalCount = 0;
   static const _pageSize = 20;
+  String _searchType = 'username'; // 默认搜索类型
+  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _scrollController.addListener(_onScroll);
+    _loadPackageInfo();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUsers() async {
-    if (_isLoading) return;
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final totalPages = (_totalCount / _pageSize).ceil();
+
+    if (_isLoading || _isLoadingMore || _currentPage >= totalPages) {
+      return;
+    }
 
     setState(() {
-      _isLoading = true;
+      _isLoadingMore = true;
+    });
+
+    _currentPage++;
+    await _loadUsers(isLoadMore: true);
+
+    setState(() {
+      _isLoadingMore = false;
+    });
+  }
+
+  Future<void> _loadUsers({bool isLoadMore = false}) async {
+    if (_isLoading && !isLoadMore) return;
+
+    setState(() {
+      _isLoading = !isLoadMore;
     });
 
     try {
+      final searchText = _searchController.text.trim();
+
+      // 根据搜索类型和关键词构建查询参数
+      int? id;
+      String? email;
+      String? username;
+
+      if (searchText.isNotEmpty) {
+        switch (_searchType) {
+          case 'id':
+            id = int.tryParse(searchText);
+            break;
+          case 'email':
+            email = searchText;
+            break;
+          case 'username':
+            username = searchText;
+            break;
+        }
+      }
+
       final (result, message) = await _userService.getUserList(
         page: _currentPage,
         pageSize: _pageSize,
+        id: id,
+        email: email,
+        username: username,
       );
 
       if (result != null && mounted) {
+        final newUsers = (result['list'] as List).cast<Map<String, dynamic>>();
+
         setState(() {
-          _users = (result['list'] as List).cast<Map<String, dynamic>>();
+          if (isLoadMore) {
+            _users.addAll(newUsers);
+          } else {
+            _users = newUsers;
+          }
           _totalCount = result['total'] as int;
           _isLoading = false;
         });
@@ -687,92 +751,163 @@ class _UserListPageState extends State<UserListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (_totalCount / _pageSize).ceil();
-
     return Column(
       children: [
         // 搜索栏
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: Row(
             children: [
-              SizedBox(
-                width: 200,
-                child: CustomTextField(
-                  controller: _searchController,
-                  hint: '搜索用户',
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
+              // 搜索输入框
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: CustomTextField(
+                    controller: _searchController,
+                    hint:
+                        '搜索用户${_searchType == "id" ? "(ID)" : _searchType == "email" ? "(邮箱)" : ""}',
+                    prefixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const SizedBox(width: 12),
+                        const Icon(Icons.search,
+                            color: Colors.white70, size: 20),
+                        const SizedBox(width: 4),
+                        // 搜索类型选择器
+                        GestureDetector(
+                          onTap: () {
+                            _showSearchTypeMenu();
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _searchType == 'username'
+                                    ? '用户名'
+                                    : _searchType == 'email'
+                                        ? '邮箱'
+                                        : 'ID',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 13),
+                              ),
+                              const Icon(Icons.arrow_drop_down,
+                                  color: Colors.white70, size: 18),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    keyboardType: _searchType == 'id'
+                        ? TextInputType.number
+                        : TextInputType.text,
+                    onSubmitted: (_) => _handleSearch(),
+                  ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              // 搜索按钮 - 改为图标
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: () {
-                  _searchController.clear();
-                  _currentPage = 1;
-                  _loadUsers();
-                },
-                tooltip: '刷新',
+                icon: const Icon(Icons.search, color: Colors.white),
+                onPressed: _handleSearch,
+                tooltip: '搜索',
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  minimumSize: const Size(48, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
               ),
             ],
           ),
         ),
-        // 用户列表
+        // 用户列表 - 添加下拉刷新
         Expanded(
           child: _isLoading
               ? const Center(child: LoadingIndicator())
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _users.length,
-                  separatorBuilder: (context, index) => const Divider(
-                    color: Colors.white24,
-                    height: 1,
-                  ),
-                  itemBuilder: (context, index) {
-                    final user = _users[index];
-                    return _buildUserExpansionTile(user);
-                  },
+              : Column(
+                  children: [
+                    // 搜索结果信息
+                    if (_searchController.text.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              '搜索结果: ${_getSearchDescription()}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '共 $_totalCount 条记录',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                    // 列表或空结果提示
+                    Expanded(
+                      child: _users.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _searchController.text.isEmpty
+                                        ? '暂无用户数据'
+                                        : '未找到符合条件的用户',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : RefreshIndicator(
+                              onRefresh: _handleRefresh,
+                              color: const Color(0xFF3B82F6),
+                              backgroundColor: const Color(0xFF1E293B),
+                              child: ListView.separated(
+                                controller: _scrollController,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount:
+                                    _users.length + (_isLoadingMore ? 1 : 0),
+                                separatorBuilder: (context, index) =>
+                                    const Divider(
+                                  color: Colors.white24,
+                                  height: 1,
+                                ),
+                                itemBuilder: (context, index) {
+                                  if (index == _users.length) {
+                                    return const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: LoadingIndicator(size: 24),
+                                      ),
+                                    );
+                                  }
+
+                                  final user = _users[index];
+                                  return _buildUserExpansionTile(user);
+                                },
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
-        ),
-        // 分页控制
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                '共 $_totalCount 条记录',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.chevron_left, color: Colors.white),
-                onPressed: _currentPage > 1
-                    ? () {
-                        setState(() {
-                          _currentPage--;
-                          _loadUsers();
-                        });
-                      }
-                    : null,
-              ),
-              Text(
-                '$_currentPage / $totalPages',
-                style: const TextStyle(color: Colors.white),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right, color: Colors.white),
-                onPressed: _currentPage < totalPages
-                    ? () {
-                        setState(() {
-                          _currentPage++;
-                          _loadUsers();
-                        });
-                      }
-                    : null,
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -1111,6 +1246,88 @@ class _UserListPageState extends State<UserListPage> {
         ),
       ],
     );
+  }
+
+  void _handleSearch() {
+    _currentPage = 1;
+    _users = []; // 清空现有用户列表
+    _loadUsers();
+  }
+
+  // 获取当前搜索条件描述
+  String _getSearchDescription() {
+    final searchText = _searchController.text.trim();
+    if (searchText.isEmpty) {
+      return '所有用户';
+    }
+
+    switch (_searchType) {
+      case 'id':
+        return 'ID: $searchText';
+      case 'email':
+        return '邮箱: $searchText';
+      case 'username':
+        return '用户名: $searchText';
+      default:
+        return searchText;
+    }
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _packageInfo = packageInfo;
+    });
+  }
+
+  void _showSearchTypeMenu() {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        const PopupMenuItem(
+          value: 'username',
+          child: Text('用户名'),
+        ),
+        const PopupMenuItem(
+          value: 'email',
+          child: Text('邮箱'),
+        ),
+        const PopupMenuItem(
+          value: 'id',
+          child: Text('ID'),
+        ),
+      ],
+    ).then((String? value) {
+      if (value != null) {
+        setState(() {
+          _searchType = value;
+          if (value == 'id' &&
+              !RegExp(r'^\d+$').hasMatch(_searchController.text)) {
+            _searchController.clear();
+          }
+        });
+      }
+    });
+  }
+
+  // 下拉刷新处理方法
+  Future<void> _handleRefresh() async {
+    _currentPage = 1;
+    await _loadUsers();
+    return;
   }
 }
 

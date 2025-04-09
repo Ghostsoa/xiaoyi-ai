@@ -15,6 +15,7 @@ class CustomTextField extends StatefulWidget {
   final int? maxLength;
   final bool? enabled;
   final void Function(String)? onChanged;
+  final void Function(String)? onSubmitted;
   final EdgeInsetsGeometry? contentPadding;
   final TextStyle? style;
   final TextStyle? labelStyle;
@@ -37,6 +38,7 @@ class CustomTextField extends StatefulWidget {
     this.maxLength,
     this.enabled,
     this.onChanged,
+    this.onSubmitted,
     this.contentPadding,
     this.style,
     this.labelStyle,
@@ -91,6 +93,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         maxLength: widget.maxLength,
         enabled: widget.enabled,
         onChanged: widget.onChanged,
+        onFieldSubmitted: widget.onSubmitted,
         focusNode: _focusNode,
         style: widget.style ??
             theme.textTheme.bodyLarge?.copyWith(

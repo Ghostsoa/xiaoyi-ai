@@ -5,6 +5,7 @@ import '../../components/loading_overlay.dart';
 import '../../net/login/api_service.dart';
 import '../../dao/storage_dao.dart';
 import '../../components/custom_snack_bar.dart';
+import '../../net/http_client.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,14 +21,17 @@ class _LoginPageState extends State<LoginPage>
   final _passwordController = TextEditingController();
   final _apiService = ApiService();
   final _storageDao = StorageDao();
+  final _httpClient = HttpClient();
   final bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  String _currentNode = '';
 
   @override
   void initState() {
     super.initState();
     _loadSavedCredentials();
+    _loadCurrentNode();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -62,6 +66,19 @@ class _LoginPageState extends State<LoginPage>
         _login(); // 直接调用登录按钮的方法
       });
     }
+  }
+
+  Future<void> _loadCurrentNode() async {
+    setState(() {
+      _currentNode = _httpClient.getCurrentNode();
+    });
+  }
+
+  Future<void> _switchNode(String node) async {
+    await _httpClient.switchApiNode(node);
+    setState(() {
+      _currentNode = node;
+    });
   }
 
   Future<void> _login() async {
@@ -180,6 +197,85 @@ class _LoginPageState extends State<LoginPage>
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
+                              ),
+                            ),
+                            const Spacer(),
+                            // 节点选择
+                            InkWell(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor:
+                                        Colors.black.withOpacity(0.8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          title: const Text(
+                                            '直连节点',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          onTap: () {
+                                            _switchNode(
+                                                _httpClient.getDefaultNode());
+                                            Navigator.pop(context);
+                                          },
+                                          selected: _currentNode ==
+                                              _httpClient.getDefaultNode(),
+                                          selectedColor:
+                                              Theme.of(context).primaryColor,
+                                        ),
+                                        ListTile(
+                                          title: const Text(
+                                            'CDN节点',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          onTap: () {
+                                            _switchNode(
+                                                _httpClient.getCdnNode());
+                                            Navigator.pop(context);
+                                          },
+                                          selected: _currentNode ==
+                                              _httpClient.getCdnNode(),
+                                          selectedColor:
+                                              Theme.of(context).primaryColor,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.public,
+                                    size: 16,
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _currentNode == _httpClient.getDefaultNode()
+                                        ? '直连节点'
+                                        : 'CDN节点',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 16,
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

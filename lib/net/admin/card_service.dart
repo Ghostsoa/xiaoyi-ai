@@ -24,18 +24,33 @@ class CardService {
 
   /// 获取卡密列表
   static Future<Map<String, dynamic>> getCardList({
-    required String batchNo,
+    String? batchNo,
+    String? cardNo,
+    dynamic used,
     int page = 1,
     int pageSize = 10,
   }) async {
     try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+      };
+
+      if (batchNo != null) {
+        queryParams['batch_no'] = batchNo;
+      }
+
+      if (cardNo != null) {
+        queryParams['card_no'] = cardNo;
+      }
+
+      if (used != null) {
+        queryParams['used'] = used;
+      }
+
       final response = await _httpClient.get(
         '/admin/cards/list',
-        queryParameters: {
-          'batch_no': batchNo,
-          'page': page,
-          'page_size': pageSize,
-        },
+        queryParameters: queryParams,
       );
       return response.data['data'];
     } catch (e) {
@@ -45,16 +60,28 @@ class CardService {
 
   /// 获取卡密批次列表
   static Future<Map<String, dynamic>> getCardBatches({
+    String? batchNo,
+    int? cardType,
     int page = 1,
     int pageSize = 10,
   }) async {
     try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+      };
+
+      if (batchNo != null) {
+        queryParams['batch_no'] = batchNo;
+      }
+
+      if (cardType != null) {
+        queryParams['card_type'] = cardType;
+      }
+
       final response = await _httpClient.get(
         '/admin/cards/batches',
-        queryParameters: {
-          'page': page,
-          'page_size': pageSize,
-        },
+        queryParameters: queryParams,
       );
       return response.data['data'];
     } catch (e) {

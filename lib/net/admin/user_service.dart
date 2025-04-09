@@ -7,14 +7,31 @@ class AdminUserService {
   Future<(Map<String, dynamic>?, String?)> getUserList({
     int page = 1,
     int pageSize = 20,
+    int? id,
+    String? email,
+    String? username,
   }) async {
     try {
+      final queryParameters = <String, dynamic>{
+        'page': page,
+        'page_size': pageSize,
+      };
+
+      if (id != null) {
+        queryParameters['id'] = id;
+      }
+
+      if (email != null) {
+        queryParameters['email'] = email;
+      }
+
+      if (username != null) {
+        queryParameters['username'] = username;
+      }
+
       final response = await _client.get(
         '/admin/users',
-        queryParameters: {
-          'page': page,
-          'page_size': pageSize,
-        },
+        queryParameters: queryParameters,
       );
 
       if (response.statusCode == 200) {

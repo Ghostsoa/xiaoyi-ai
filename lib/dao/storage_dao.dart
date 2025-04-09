@@ -7,9 +7,12 @@ class StorageDao {
   static const String _keyUser = 'user';
   static const String _keyEmail = 'email';
   static const String _keyPassword = 'password';
+  static const String _keyCredentials = 'credentials';
   static const String _primaryColorKey = 'primary_color';
   static const String _secondaryColorKey = 'secondary_color';
   static const String _apiNodeKey = 'api_node';
+  static const String _defaultNode = 'hk.xiaoyi.ink';
+  static const String _cdnNode = 'hk.xiaoyi.live';
 
   static final StorageDao _instance = StorageDao._internal();
   late SharedPreferences _prefs;
@@ -110,7 +113,17 @@ class StorageDao {
   }
 
   String getApiNode() {
-    return _prefs.getString(_apiNodeKey) ?? 'xy.xiaoyi.live'; // 默认使用xy节点
+    return _prefs.getString(_apiNodeKey) ?? _defaultNode;
+  }
+
+  // 获取默认节点
+  String getDefaultNode() {
+    return _defaultNode;
+  }
+
+  // 获取CDN节点
+  String getCdnNode() {
+    return _cdnNode;
   }
 
   // 获取当前用户ID

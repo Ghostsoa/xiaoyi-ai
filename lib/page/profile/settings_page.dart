@@ -14,6 +14,7 @@ import '../../components/loading_overlay.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../settings/import_page.dart';
 import '../about/about_page.dart';
+import '../../net/http_client.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -25,6 +26,8 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _storageDao = StorageDao();
   final _profileService = ProfileService();
+  final _httpClient = HttpClient();
+  String _currentNode = '';
 
   Color _primaryColor = const Color(0xFF6C72CB); // 使用默认值初始化
   Color _secondaryColor = const Color(0xFF88A0BF); // 使用默认值初始化
@@ -42,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadThemeColors();
     _loadFollowPrimaryColorSetting();
+    _loadCurrentNode();
   }
 
   Future<void> _loadThemeColors() async {
@@ -61,6 +65,12 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_followPrimaryColor) {
         _updateSecondaryFromPrimary(_primaryColor);
       }
+    });
+  }
+
+  Future<void> _loadCurrentNode() async {
+    setState(() {
+      _currentNode = _httpClient.getCurrentNode();
     });
   }
 
@@ -126,6 +136,13 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
     await _storageDao.setBool('follow_primary_color', value);
+  }
+
+  Future<void> _switchNode(String node) async {
+    await _httpClient.switchApiNode(node);
+    setState(() {
+      _currentNode = node;
+    });
   }
 
   @override
@@ -550,6 +567,98 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   onTap: () => _showLogoutDialog(context),
+                ),
+              ),
+              // API节点设置
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'API节点',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: Colors.black.withOpacity(0.8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    title: const Text(
+                                      '直连节点',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    onTap: () {
+                                      _switchNode(_httpClient.getDefaultNode());
+                                      Navigator.pop(context);
+                                    },
+                                    selected: _currentNode ==
+                                        _httpClient.getDefaultNode(),
+                                    selectedColor:
+                                        Theme.of(context).primaryColor,
+                                  ),
+                                  ListTile(
+                                    title: const Text(
+                                      'CDN节点',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    onTap: () {
+                                      _switchNode(_httpClient.getCdnNode());
+                                      Navigator.pop(context);
+                                    },
+                                    selected: _currentNode ==
+                                        _httpClient.getCdnNode(),
+                                    selectedColor:
+                                        Theme.of(context).primaryColor,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.public,
+                                  size: 20,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _currentNode == _httpClient.getDefaultNode()
+                                      ? '直连节点'
+                                      : 'CDN节点',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: Colors.grey.shade400,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
