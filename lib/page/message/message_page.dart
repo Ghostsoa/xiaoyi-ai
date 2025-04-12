@@ -16,6 +16,7 @@ import '../../net/admin/version_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 class MessagePage extends StatefulWidget {
   final ChatListService chatListService;
@@ -62,6 +63,8 @@ class MessagePageState extends State<MessagePage> {
   @override
   void initState() {
     super.initState();
+    // 添加日期格式化初始化
+    initializeDateFormatting('zh_CN', null);
     _loadItems();
     _loadNotificationStatus();
     checkVersion(); // 添加版本检测
@@ -409,9 +412,15 @@ class MessagePageState extends State<MessagePage> {
   @override
   Widget build(BuildContext context) {
     // 准备显示的列表项
-    final displayItems = [officialAssistant];
+    final displayItems = <ChatListItem>[officialAssistant];
     if (_items != null && _items!.isNotEmpty) {
       displayItems.addAll(_items!);
+    }
+
+    // 打印调试信息
+    print('显示的项目数量: ${displayItems.length}');
+    if (displayItems.length > 1) {
+      print('第一个消息项: ${displayItems[1].title}');
     }
 
     return Container(
@@ -653,14 +662,18 @@ class MessagePageState extends State<MessagePage> {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text(
-                                              item.title.length > 6
-                                                  ? '${item.title.substring(0, 6)}...'
-                                                  : item.title,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.white,
+                                            Flexible(
+                                              child: Text(
+                                                item.title.length > 6
+                                                    ? '${item.title.substring(0, 6)}...'
+                                                    : item.title,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.white,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                             if (!isOfficialAssistant) ...[
@@ -675,6 +688,8 @@ class MessagePageState extends State<MessagePage> {
                                                     return const SizedBox();
                                                   }
                                                   return Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
                                                     children: [
                                                       GestureDetector(
                                                         onTap: () =>
@@ -713,7 +728,7 @@ class MessagePageState extends State<MessagePage> {
                                                                 MainAxisSize
                                                                     .min,
                                                             children: [
-                                                              Icon(
+                                                              const Icon(
                                                                 Icons
                                                                     .save_outlined,
                                                                 color: Colors
@@ -776,12 +791,9 @@ class MessagePageState extends State<MessagePage> {
                                                           mainAxisSize:
                                                               MainAxisSize.min,
                                                           children: [
-                                                            Icon(
-                                                              item.isGroup
-                                                                  ? Icons
-                                                                      .people_outline
-                                                                  : Icons
-                                                                      .person_outline,
+                                                            const Icon(
+                                                              Icons
+                                                                  .people_outline,
                                                               color:
                                                                   Colors.white,
                                                               size: 12,

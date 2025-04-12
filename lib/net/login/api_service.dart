@@ -54,19 +54,26 @@ class ApiService {
 
   Future<(bool, String)> register(
       String email, String password, String username, String code,
-      {int gender = 1}) async {
+      {int gender = 1, int? inviterId}) async {
     try {
       final deviceHeaders = await _deviceService.getDeviceHeaders();
 
+      final data = {
+        'email': email,
+        'password': password,
+        'username': username,
+        'code': code,
+        'gender': gender,
+      };
+
+      // 如果有邀请人ID，则添加到请求中
+      if (inviterId != null) {
+        data['inviter_id'] = inviterId;
+      }
+
       final response = await _client.post(
         '/auth/register',
-        data: {
-          'email': email,
-          'password': password,
-          'username': username,
-          'code': code,
-          'gender': gender,
-        },
+        data: data,
         options: Options(headers: deviceHeaders),
       );
 

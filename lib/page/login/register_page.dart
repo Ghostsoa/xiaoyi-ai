@@ -21,6 +21,7 @@ class _RegisterPageState extends State<RegisterPage>
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _inviterIdController = TextEditingController();
   final _apiService = ApiService();
   final bool _isLoading = false;
   bool _isSendingCode = false;
@@ -112,6 +113,9 @@ class _RegisterPageState extends State<RegisterPage>
           _usernameController.text,
           _codeController.text,
           gender: _gender,
+          inviterId: _inviterIdController.text.isNotEmpty
+              ? int.tryParse(_inviterIdController.text)
+              : null,
         ),
       );
 
@@ -384,6 +388,25 @@ class _RegisterPageState extends State<RegisterPage>
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+                        CustomTextField(
+                          controller: _inviterIdController,
+                          label: '邀请人ID',
+                          hint: '请输入邀请人ID（选填）',
+                          prefixIcon: const Icon(Icons.person_add,
+                              color: Colors.white70),
+                          style: const TextStyle(color: Colors.white),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty) {
+                              final inviterId = int.tryParse(value);
+                              if (inviterId == null) {
+                                return '邀请人ID必须是数字哦 📝';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 30),
                         CustomButton(
                           text: '立即创建账号 ➕',
@@ -439,6 +462,7 @@ class _RegisterPageState extends State<RegisterPage>
     _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _inviterIdController.dispose();
     _timer?.cancel();
     _animationController.dispose();
     super.dispose();
