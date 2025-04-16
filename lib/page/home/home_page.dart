@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../message/message_page.dart';
 import '../plaza/plaza_page.dart';
 import '../profile/profile_page.dart';
+import '../agent/agent_page.dart';
 import '../../net/profile/profile_service.dart';
 import '../../net/http_client.dart';
+import '../../net/agent/agent_card_service.dart';
 import '../../service/character_card_service.dart';
 import '../../service/chat_history_service.dart';
 import '../../service/chat_list_service.dart';
 import 'package:flutter/services.dart';
+import '../../components/custom_snack_bar.dart';
 
 class HomePage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -29,10 +32,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _profileService = ProfileService();
+  final _agentCardService = AgentCardService();
   Map<String, dynamic>? _assetData;
   DateTime? _lastFetchTime;
   final _messagePageKey = GlobalKey<MessagePageState>();
   final _profilePageKey = GlobalKey<ProfilePageState>();
+  bool _hasCreationPermission = false;
+  bool _checkingPermission = false;
 
   final List<NavigationDestination> _destinations = [
     NavigationDestination(
@@ -44,6 +50,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       icon: const Icon(Icons.dashboard_outlined),
       selectedIcon: const Icon(Icons.dashboard),
       label: '大厅',
+    ),
+    NavigationDestination(
+      icon: const Icon(Icons.science_outlined),
+      selectedIcon: const Icon(Icons.science),
+      label: 'Beta',
     ),
     NavigationDestination(
       icon: const Icon(Icons.person_outline),
@@ -59,6 +70,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // 设置 HttpClient 的全局 context
     WidgetsBinding.instance.addPostFrameCallback((_) {
       HttpClient.setContext(context);
+      _checkCreationPermission();
     });
   }
 
@@ -76,9 +88,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _messagePageKey.currentState?.checkNotificationStatus();
         _messagePageKey.currentState?.refreshMessages();
         _messagePageKey.currentState?.checkVersion();
-      } else if (_currentIndex == 2) {
+      } else if (_currentIndex == 3) {
         _loadAssetInfo();
         _profilePageKey.currentState?.refreshCheckInStatus();
+      } else if (_currentIndex == 2) {
+        _checkCreationPermission();
       }
     }
   }
@@ -91,12 +105,45 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _messagePageKey.currentState?.checkNotificationStatus();
       _messagePageKey.currentState?.refreshMessages();
       _messagePageKey.currentState?.checkVersion();
-    } else if (_currentIndex == 2) {
+    } else if (_currentIndex == 3) {
       _loadAssetInfo();
+    } else if (_currentIndex == 2) {
+      _checkCreationPermission();
+    }
+  }
+
+  Future<void> _checkCreationPermission() async {
+    if (_checkingPermission) return;
+    _checkingPermission = true;
+
+    try {
+      final result = await _agentCardService.checkCreationQualification();
+      if (mounted) {
+        setState(() {
+          _hasCreationPermission = result.hasPermission;
+          _checkingPermission = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _checkingPermission = false;
+        });
+        print('检查创作权限失败: $e');
+      }
     }
   }
 
   void _onDestinationSelected(int index) {
+    // 如果点击Beta选项卡并且没有创作权限，则直接进入Beta页面
+    // Beta页面内部会显示申请界面
+    if (index == 2) {
+      setState(() {
+        _currentIndex = index;
+      });
+      return;
+    }
+
     setState(() {
       _currentIndex = index;
     });
@@ -107,7 +154,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _messagePageKey.currentState?.checkVersion();
     }
     // 当切换到个人页面时加载资产信息和刷新签到状态
-    if (index == 2) {
+    if (index == 3) {
       _loadAssetInfo();
       _profilePageKey.currentState?.refreshCheckInStatus();
     }
@@ -136,6 +183,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 chatHistoryService: widget.chatHistoryService,
                 chatListService: widget.chatListService,
               ),
+              const AgentPage(),
               ProfilePage(key: _profilePageKey, assetData: _assetData),
             ],
           ),
@@ -177,7 +225,67 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 indicatorColor: Colors.transparent,
                 animationDuration: const Duration(milliseconds: 400),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-                destinations: _destinations.map((destination) {
+                destinations: _destinations.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  NavigationDestination destination = entry.value;
+
+                  // 为Beta页面添加权限提示
+                  if (index == 2 && !_hasCreationPermission) {
+                    return NavigationDestination(
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          _buildIcon(
+                            destination.icon,
+                            isSelected: false,
+                          ),
+                          Positioned(
+                            right: -4,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock,
+                                size: 8,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      selectedIcon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          _buildIcon(
+                            destination.selectedIcon,
+                            isSelected: true,
+                          ),
+                          Positioned(
+                            right: -4,
+                            top: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock,
+                                size: 8,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      label: destination.label,
+                    );
+                  }
+
                   return NavigationDestination(
                     icon: _buildIcon(
                       destination.icon,

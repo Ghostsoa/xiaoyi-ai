@@ -7,6 +7,7 @@ import 'pages/card/card_manage_page.dart';
 import 'pages/notification/admin_notification_page.dart';
 import 'pages/key_manager/model_series_page.dart';
 import 'pages/plaza/plaza_manage_page.dart';
+import 'pages/qualification/qualification_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -42,6 +43,12 @@ class _AdminPageState extends State<AdminPage> {
       title: '大厅管理',
       icon: Icons.public,
       page: const PlazaManagePage(),
+    ),
+    _NavigationItem(
+      id: 'qualification_manage',
+      title: '创作资格管理',
+      icon: Icons.verified_user,
+      page: const QualificationPage(),
     ),
     _NavigationItem(
       id: 'notification_manage',

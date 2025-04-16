@@ -6,6 +6,7 @@ import 'online_plaza_page.dart';
 import 'character_edit_page.dart';
 import '../../service/chat_list_service.dart';
 import 'creation_plaza_page.dart';
+import 'world_plaza_page.dart';
 
 class PlazaPage extends StatefulWidget {
   final CharacterCardService characterCardService;
@@ -31,7 +32,7 @@ class _PlazaPageState extends State<PlazaPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -68,7 +69,8 @@ class _PlazaPageState extends State<PlazaPage>
             tabs: const [
               Tab(text: '本地'),
               Tab(text: '在线'),
-              Tab(text: '创作'),
+              Tab(text: '大世界'),
+              Tab(text: '绘图'),
             ],
           ),
           actions: [
@@ -105,6 +107,7 @@ class _PlazaPageState extends State<PlazaPage>
                   chatListService: widget.chatListService,
                 ),
                 const OnlinePlazaPage(),
+                const WorldPlazaPage(),
                 CreationPlazaPage(
                   key: _creationPlazaKey,
                 ),

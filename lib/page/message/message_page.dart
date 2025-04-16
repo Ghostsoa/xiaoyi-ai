@@ -6,7 +6,6 @@ import '../../model/character_card.dart';
 import '../../service/chat_list_service.dart';
 import '../../service/character_card_service.dart';
 import '../../service/chat_history_service.dart';
-import '../../service/image_service.dart';
 import '../../net/notification/notification_service.dart';
 import '../../page/chat/chat_page.dart';
 import '../../page/chat/group_chat_page.dart';
@@ -17,6 +16,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'local_message_page.dart';
+import 'world_message_page.dart';
 
 class MessagePage extends StatefulWidget {
   final ChatListService chatListService;
@@ -34,7 +35,8 @@ class MessagePage extends StatefulWidget {
   State<MessagePage> createState() => MessagePageState();
 }
 
-class MessagePageState extends State<MessagePage> {
+class MessagePageState extends State<MessagePage>
+    with SingleTickerProviderStateMixin {
   List<ChatListItem>? _items;
   bool _isLoading = true;
   bool _isSelectionMode = false;
@@ -60,11 +62,14 @@ class MessagePageState extends State<MessagePage> {
     avatarBase64: null, // 这里可以设置官方助手的头像
   );
 
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
     // 添加日期格式化初始化
     initializeDateFormatting('zh_CN', null);
+    _tabController = TabController(length: 2, vsync: this);
     _loadItems();
     _loadNotificationStatus();
     checkVersion(); // 添加版本检测
@@ -81,6 +86,7 @@ class MessagePageState extends State<MessagePage> {
   @override
   void dispose() {
     _refreshController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -88,19 +94,6 @@ class MessagePageState extends State<MessagePage> {
     setState(() {
       _isSelectionMode = !_isSelectionMode;
       _selectedItems.clear();
-    });
-  }
-
-  void _toggleItemSelection(String code) {
-    // 不允许选择官方助手
-    if (code == officialAssistantCode) return;
-
-    setState(() {
-      if (_selectedItems.contains(code)) {
-        _selectedItems.remove(code);
-      } else {
-        _selectedItems.add(code);
-      }
     });
   }
 
@@ -144,25 +137,6 @@ class MessagePageState extends State<MessagePage> {
         });
         CustomSnackBar.show(context, message: '加载失败: $e');
       }
-    }
-  }
-
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final difference = now.difference(time);
-
-    if (difference.inDays == 0) {
-      // 今天，显示时间
-      return DateFormat('HH:mm').format(time);
-    } else if (difference.inDays == 1) {
-      // 昨天
-      return '昨天';
-    } else if (difference.inDays < 7) {
-      // 一周内，显示星期
-      return DateFormat('EEEE', 'zh_CN').format(time);
-    } else {
-      // 超过一周，显示日期
-      return DateFormat('MM-dd').format(time);
     }
   }
 
@@ -552,308 +526,42 @@ class MessagePageState extends State<MessagePage> {
                 ),
               ]
           ],
-        ),
-        body: SafeArea(
-          child: SmartRefresher(
-            controller: _refreshController,
-            onRefresh: _onRefresh,
-            header: WaterDropHeader(
-              waterDropColor: Theme.of(context).primaryColor,
-              complete: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.done, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text(
-                    '刷新完成',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                  ),
-                ],
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(
+                text: '本地',
               ),
+              Tab(
+                text: '大世界',
+              ),
+            ],
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            indicatorSize: TabBarIndicatorSize.label,
+            indicatorWeight: 2,
+            labelStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
             ),
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 0),
-                    itemCount: displayItems.length,
-                    itemBuilder: (context, index) {
-                      final item = displayItems[index];
-                      final bool isOfficialAssistant =
-                          item.characterCode == officialAssistantCode;
-
-                      return InkWell(
-                        onTap: () {
-                          if (_isSelectionMode && !isOfficialAssistant) {
-                            _toggleItemSelection(item.characterCode);
-                          } else {
-                            _onItemTap(item);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isOfficialAssistant
-                                ? Colors.white.withOpacity(0.1)
-                                : null,
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.white.withOpacity(0.1),
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              if (_isSelectionMode && !isOfficialAssistant) ...[
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: Icon(
-                                    _selectedItems.contains(item.characterCode)
-                                        ? Icons.check_circle
-                                        : Icons.radio_button_unchecked,
-                                    color: _selectedItems
-                                            .contains(item.characterCode)
-                                        ? Theme.of(context).primaryColor
-                                        : Colors.white.withOpacity(0.5),
-                                    size: 24,
-                                  ),
-                                ),
-                              ],
-                              // 头像
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.2),
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                      isOfficialAssistant ? 24 : 0),
-                                ),
-                                child: isOfficialAssistant
-                                    ? const Icon(
-                                        Icons.support_agent,
-                                        color: Colors.white,
-                                        size: 24,
-                                      )
-                                    : (item.avatarBase64 != null
-                                        ? ImageService.imageFromBase64String(
-                                            item.avatarBase64!,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : const Icon(
-                                            Icons.person_outline,
-                                            color: Colors.white54,
-                                            size: 24,
-                                          )),
-                              ),
-                              const SizedBox(width: 12),
-                              // 标题和消息
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Flexible(
-                                              child: Text(
-                                                item.title.length > 6
-                                                    ? '${item.title.substring(0, 6)}...'
-                                                    : item.title,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  color: Colors.white,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (!isOfficialAssistant) ...[
-                                              const SizedBox(width: 8),
-                                              FutureBuilder<int>(
-                                                future: widget
-                                                    .chatHistoryService
-                                                    .getCurrentSlot(
-                                                        item.characterCode),
-                                                builder: (context, snapshot) {
-                                                  if (!snapshot.hasData) {
-                                                    return const SizedBox();
-                                                  }
-                                                  return Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      GestureDetector(
-                                                        onTap: () =>
-                                                            _showSlotSelectionDialog(
-                                                                item.characterCode),
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                            horizontal: 6,
-                                                            vertical: 3,
-                                                          ),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: const Color(
-                                                                0xFF4CAF50),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        4),
-                                                            boxShadow: [
-                                                              BoxShadow(
-                                                                color: const Color(
-                                                                        0xFF4CAF50)
-                                                                    .withOpacity(
-                                                                        0.3),
-                                                                blurRadius: 4,
-                                                                offset:
-                                                                    const Offset(
-                                                                        0, 1),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          child: Row(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              const Icon(
-                                                                Icons
-                                                                    .save_outlined,
-                                                                color: Colors
-                                                                    .white,
-                                                                size: 12,
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 2),
-                                                              Text(
-                                                                '档${snapshot.data}',
-                                                                style:
-                                                                    const TextStyle(
-                                                                  fontSize: 10,
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w500,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 3,
-                                                        ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: item.isGroup
-                                                              ? const Color(
-                                                                  0xFFFFD700)
-                                                              : const Color(
-                                                                  0xFF1E90FF),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(4),
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              color: (item.isGroup
-                                                                      ? const Color(
-                                                                          0xFFFFD700)
-                                                                      : const Color(
-                                                                          0xFF1E90FF))
-                                                                  .withOpacity(
-                                                                      0.3),
-                                                              blurRadius: 4,
-                                                              offset:
-                                                                  const Offset(
-                                                                      0, 1),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        child: Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            const Icon(
-                                                              Icons
-                                                                  .people_outline,
-                                                              color:
-                                                                  Colors.white,
-                                                              size: 12,
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 2),
-                                                            Text(
-                                                              item.isGroup
-                                                                  ? '多人'
-                                                                  : '单人',
-                                                              style:
-                                                                  const TextStyle(
-                                                                fontSize: 10,
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        Text(
-                                          _formatTime(item.lastMessageTime),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item.lastMessage,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white.withOpacity(0.7),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 14,
+            ),
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
           ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            LocalMessagePage(
+              chatListService: widget.chatListService,
+              characterCardService: widget.characterCardService,
+              chatHistoryService: widget.chatHistoryService,
+            ),
+            const WorldMessagePage(),
+          ],
         ),
       ),
     );

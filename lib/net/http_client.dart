@@ -241,49 +241,16 @@ class HttpClient {
     }
   }
 
-  // 处理Dio异常，提供友好的错误信息
+  // 处理Dio异常，显示服务器返回的错误信息
   void _handleDioError(dynamic error) {
-    if (error is DioException) {
-      switch (error.type) {
-        case DioExceptionType.connectionTimeout:
-          _showErrorMessage('连接超时，请检查网络');
-          break;
-        case DioExceptionType.sendTimeout:
-          _showErrorMessage('发送超时，请检查网络');
-          break;
-        case DioExceptionType.receiveTimeout:
-          _showErrorMessage('接收超时，请检查网络');
-          break;
-        case DioExceptionType.badCertificate:
-          _showErrorMessage('服务器证书验证失败');
-          break;
-        case DioExceptionType.badResponse:
-          _showErrorMessage('服务器返回错误：${error.response?.statusCode ?? "未知"}');
-          break;
-        case DioExceptionType.cancel:
-          _showErrorMessage('请求被取消');
-          break;
-        case DioExceptionType.connectionError:
-          _showErrorMessage('连接错误，请检查网络设置');
-          break;
-        case DioExceptionType.unknown:
-          if (error.error != null &&
-              error.error.toString().contains('SocketException')) {
-            _showErrorMessage('无法连接到服务器，请检查网络');
-          } else {
-            _showErrorMessage('未知错误：${error.message}');
-          }
-          break;
-        default:
-          _showErrorMessage('请求错误：${error.message}');
+    if (error is DioException && error.response?.data != null) {
+      final data = error.response!.data;
+      if (data is Map) {
+        final message = data['msg'] ?? data['err'] ?? data['error'] ?? '';
+        if (message.isNotEmpty && _context != null && _context!.mounted) {
+          CustomSnackBar.show(_context!, message: message);
+        }
       }
-    }
-  }
-
-  // 显示错误消息
-  void _showErrorMessage(String message) {
-    if (_context != null && _context!.mounted) {
-      CustomSnackBar.show(_context!, message: message);
     }
   }
 }
