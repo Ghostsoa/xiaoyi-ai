@@ -67,7 +67,7 @@ class SessionService {
   Future<Map<String, dynamic>> chat(String sessionId, String content) async {
     try {
       final response = await _client
-          .post('/session/$sessionId/chat', data: {'content': content});
+          .postForChat('/session/$sessionId/chat', data: {'content': content});
 
       if (response.data['code'] == 200) {
         return response.data['data'];
