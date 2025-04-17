@@ -726,16 +726,44 @@ class _CustomFieldsPanelState extends State<CustomFieldsPanel>
           fieldName.toLowerCase().contains('百分比') ||
           (fieldValue is double && fieldValue <= 1.0);
 
-      final double progressValue =
-          isPercentage && fieldValue is double && fieldValue <= 1.0
-              ? fieldValue
-              : fieldValue is int
-                  ? fieldValue / 100.0
-                  : fieldValue / 100.0;
+      // 计算进度条值和显示文本
+      double progressValue;
+      String displayValue;
 
-      final String displayValue = isPercentage
-          ? "${(fieldValue is double && fieldValue <= 1.0 ? fieldValue * 100 : fieldValue).toStringAsFixed(1)}%"
-          : fieldValue.toString();
+      if (isPercentage) {
+        // 百分比类型的处理
+        progressValue = fieldValue is double && fieldValue <= 1.0
+            ? fieldValue
+            : fieldValue / 100.0;
+        displayValue =
+            "${(fieldValue is double && fieldValue <= 1.0 ? fieldValue * 100 : fieldValue).toStringAsFixed(1)}%";
+      } else {
+        // 非百分比类型的处理
+        if (fieldValue <= 100) {
+          // 0-100范围
+          progressValue = fieldValue / 100.0;
+          displayValue = fieldValue.toString();
+        } else if (fieldValue <= 1000) {
+          // 100-1000范围
+          progressValue = fieldValue / 1000.0;
+          displayValue = "${fieldValue.toStringAsFixed(0)}/${1000}";
+        } else {
+          // 1000以上
+          String unit = '';
+          double value = fieldValue.toDouble();
+
+          if (fieldValue >= 10000) {
+            value = fieldValue / 10000.0;
+            unit = 'w';
+          } else {
+            value = fieldValue / 1000.0;
+            unit = 'k';
+          }
+
+          progressValue = (fieldValue % 1000) / 1000.0;
+          displayValue = "${value.toStringAsFixed(1)}$unit";
+        }
+      }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,

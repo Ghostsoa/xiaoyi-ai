@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../../net/session/session_service.dart';
@@ -7,6 +8,7 @@ import '../../components/chat_v2/custom_fields_panel.dart';
 import '../../components/custom_snack_bar.dart';
 import '../../components/custom_markdown.dart';
 import '../../dao/settings_dao.dart';
+import 'package:flutter/rendering.dart';
 
 class Message {
   final String id;
@@ -586,18 +588,17 @@ class _AgentChatPageState extends State<AgentChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+
     return GestureDetector(
-      // 点击空白处关闭键盘
       onTap: () {
-        // 取消当前文本输入框的焦点
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        // 添加悬浮按钮
         floatingActionButton: _showScrollToBottom
             ? Padding(
-                padding: const EdgeInsets.only(bottom: 65.0),
+                padding: EdgeInsets.only(bottom: 65.0 + bottomPadding),
                 child: Container(
                   height: 32,
                   margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -654,7 +655,6 @@ class _AgentChatPageState extends State<AgentChatPage> {
                 ),
               )
             : null,
-        // 调整悬浮按钮位置
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         body: Stack(
           children: [
@@ -667,53 +667,82 @@ class _AgentChatPageState extends State<AgentChatPage> {
                 ),
               ),
 
-            // 主聊天内容
-            Column(
-              children: [
-                AppBar(
-                  title: Text(widget.sessionName),
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: () => _loadMessages(),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  AppBar(
+                    title: Text(
+                      widget.sessionName,
+                      style: const TextStyle(color: Colors.white),
                     ),
-                  ],
-                ),
-                Expanded(
-                  child: SmartRefresher(
-                    controller: _refreshController,
-                    enablePullDown: true,
-                    enablePullUp: false,
-                    onRefresh: _onLoadMore,
-                    header: const ClassicHeader(
-                      idleText: '下拉加载更多',
-                      refreshingText: '加载中...',
-                      completeText: '加载完成',
-                      failedText: '加载失败',
-                      releaseText: '松开加载更多',
-                      textStyle: TextStyle(color: Colors.white70),
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    surfaceTintColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    elevation: 0,
+                    systemOverlayStyle: const SystemUiOverlayStyle(
+                      statusBarColor: Colors.transparent,
+                      statusBarIconBrightness: Brightness.light,
+                      statusBarBrightness: Brightness.dark,
                     ),
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final message = _messages[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildMessageBubble(message),
-                        );
-                      },
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () => _loadMessages(),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: SmartRefresher(
+                      controller: _refreshController,
+                      enablePullDown: true,
+                      enablePullUp: false,
+                      onRefresh: _onLoadMore,
+                      header: const ClassicHeader(
+                        idleText: '下拉加载更多',
+                        refreshingText: '加载中...',
+                        completeText: '加载完成',
+                        failedText: '加载失败',
+                        releaseText: '松开加载更多',
+                        textStyle: TextStyle(color: Colors.white70),
+                      ),
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 60 + bottomPadding,
+                        ),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _buildMessageBubble(message),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                ChatInputField(
+                ],
+              ),
+            ),
+
+            // 输入框区域
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                color: Colors.black54,
+                padding: EdgeInsets.only(bottom: bottomPadding),
+                child: ChatInputField(
                   controller: _messageController,
                   isLoading: _isSending,
                   onSend: _sendMessage,
-                  backgroundColor: Colors.black54,
+                  backgroundColor: Colors.transparent,
                   textColor: Colors.white,
                   iconColor: Colors.white,
                   onPanelToggle: _togglePanel,
@@ -721,10 +750,10 @@ class _AgentChatPageState extends State<AgentChatPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
-              ],
+              ),
             ),
 
-            // 自定义字段侧边栏（覆盖在主内容上）
+            // 自定义字段侧边栏
             if (_showPanel)
               Positioned.fill(
                 child: CustomFieldsPanel(
@@ -925,38 +954,6 @@ class _AgentChatPageState extends State<AgentChatPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // 构建底部输入区域
-  Widget _buildBottomInput() {
-    return Container(
-      child: Row(
-        children: [
-          // 面板按钮
-          IconButton(
-            icon: Icon(
-              Icons.menu,
-              color: _showPanel ? Colors.blue : Colors.grey,
-            ),
-            onPressed: _togglePanel,
-            tooltip: '查看自定义字段',
-          ),
-
-          // 输入框
-          ChatInputField(
-            controller: _messageController,
-            isLoading: _isSending,
-            onSend: _sendMessage,
-            backgroundColor: Colors.black54,
-            textColor: Colors.white,
-            iconColor: Colors.white,
-            onPanelToggle: _togglePanel,
-            hintText: '发送一条消息...',
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          ),
-        ],
       ),
     );
   }
