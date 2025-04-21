@@ -7,6 +7,7 @@ import 'page/login/login_page.dart';
 import 'page/login/register_page.dart';
 import 'page/home/home_page.dart';
 import 'page/profile/sponsor_page.dart';
+import 'page/profile/invite_page.dart';
 import 'dao/storage_dao.dart';
 import 'dao/character_card_dao.dart';
 import 'service/character_card_service.dart';
@@ -185,6 +186,7 @@ class _MyAppState extends State<MyApp> {
         '/sponsor': (context) => const SponsorPage(),
         '/notifications': (context) => const NotificationPage(),
         '/lottery': (context) => const LotteryPage(),
+        '/invite': (context) => const InvitePage(),
       },
     );
   }
