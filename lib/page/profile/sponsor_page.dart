@@ -198,8 +198,7 @@ class _SponsorPageState extends State<SponsorPage> {
                       ),
                       const SizedBox(height: 16),
                       InkWell(
-                        onTap: () => _launchURL(
-                            'https://shop.xiaoman.top//links/4D1256ED'),
+                        onTap: () => _launchURL('http://zanzhu.xiaoyi.ink'),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
